@@ -41,11 +41,6 @@ The server will start at `http://localhost:8080`.
 
 ### API Endpoints
 
-#### Upload a Build
-
-- **Endpoint**: `POST /builds`
-- **Description**: Upload a new build with all its details.
-
 **Request Parameters** (as `multipart/form-data`):
 
 - `name` (String) - *Required*
