@@ -7,7 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 class McBuildLibraryApplicationTests {
 
     @Test
-    void contextLoads() {
+    void contextLoads() { //No test for now since there is no functionality
     }
 
 }
