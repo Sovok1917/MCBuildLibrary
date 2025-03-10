@@ -1,19 +1,18 @@
-package sovok.mcbuildlibrary;
+package sovok.mcbuildlibrary.model;
 
 import java.util.List;
 
 public class Build {
-    private String id; // Unique identifier
-    private String name; // Name of the build
-    private String author; // Creator of the build
-    private String theme; // Theme or style of the build
-    private String description; // Detailed description of the build
-    private List<String> colors; // List of prominent colors used in the build
-    private List<String> screenshots; // Paths/URLs to screenshots (if any)
-    private String schemFile; // Path/URL to the .schem file
+    private String id;
+    private String name;
+    private String author;
+    private String theme;
+    private String description;
+    private List<String> colors;
+    private List<String> screenshots;
+    private String schemFile;
 
-    // Constructor
-    @SuppressWarnings("java:S107") // Suppress warnings about too many parameters (temporary)
+    @SuppressWarnings("java:S107") // Suppressing the sonar issue (until making the class a bean)
     public Build(String id, String name, String author, String theme, String description,
                  List<String> colors, List<String> screenshots, String schemFile) {
         this.id = id;
@@ -26,7 +25,6 @@ public class Build {
         this.schemFile = schemFile;
     }
 
-    // Getters and Setters
     public String getId() {
         return id;
     }
