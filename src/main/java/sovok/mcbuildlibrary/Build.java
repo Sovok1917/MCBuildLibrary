@@ -13,7 +13,7 @@ public class Build {
     private String schemFile; // Path/URL to the .schem file
 
     // Constructor
-    @SuppressWarnings("java:S107") // Suppress warnings about too many parameters (plan to make it an actual component in the future to fox)
+    @SuppressWarnings("java:S107") // Suppress warnings about too many parameters (temporary solution)
     public Build(String id, String name, String author, String theme, String description,
                  List<String> colors, List<String> screenshots, String schemFile) {
         this.id = id;
