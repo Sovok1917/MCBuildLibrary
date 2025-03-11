@@ -24,18 +24,6 @@ public class BuildService {
         return buildDao.findAll();
     }
 
-    public Optional<Build> findBuildByName(String name) {
-        return buildDao.findByName(name);
-    }
-
-    public List<Build> getBuildsByTheme(String theme) {
-        return buildDao.findByTheme(theme);
-    }
-
-    public List<Build> getBuildsByAuthor(String author) {
-        return buildDao.findByAuthor(author);
-    }
-
     public List<Build> filterBuilds(String author, String name, String theme, List<String> colors) {
         return buildDao.filterBuilds(author, name, theme, colors);
     }
