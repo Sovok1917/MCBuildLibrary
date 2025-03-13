@@ -46,7 +46,7 @@ public class BuildController {
             @RequestParam(required = false) String author,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String theme,
-            @RequestParam(required = false) List<String> colors) {
+            @RequestParam(value = "color", required = false) List<String> colors) {
 
         List<Build> filteredBuilds = buildService.filterBuilds(author, name, theme, colors);
         if (filteredBuilds == null || filteredBuilds.isEmpty()) {
