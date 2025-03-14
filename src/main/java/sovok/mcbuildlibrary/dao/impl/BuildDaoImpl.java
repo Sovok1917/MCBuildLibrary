@@ -3,7 +3,6 @@ package sovok.mcbuildlibrary.dao.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Repository;
 import sovok.mcbuildlibrary.dao.BuildDao;
 import sovok.mcbuildlibrary.model.Build;
@@ -11,58 +10,65 @@ import sovok.mcbuildlibrary.model.Build;
 @Repository
 public class BuildDaoImpl implements BuildDao {
 
+    // Constants for reused strings.
+    private static final String AUTHOR1 = "Author1";
+    private static final String AUTHOR2 = "Author2";
+
+    private static final String MEDIEVAL = "Medieval";
+    private static final String FANTASY = "Fantasy";
+
     // Simulated database of builds using an in-memory List.
     private final List<Build> builds = new ArrayList<>(List.of(
-            new Build("1", "Medieval Castle", "Author1", "Medieval",
-                    "A majestic medieval castle with intricate details.",
-                    new ArrayList<>(List.of("Gray", "Blue")),
-                    new ArrayList<>(List.of("https://example.com/medieval1.jpg", "https://example.com/medieval2.jpg")),
-                    "https://example.com/medieval.schem"),
-            new Build("2", "Modern Villa", "Author1", "Fantasy",
-                    "A sleek modern villa with a swimming pool.",
-                    new ArrayList<>(List.of("White", "Black", "Gray")),
-                    new ArrayList<>(List.of("https://example.com/modern1.jpg", "https://example.com/modern2.jpg")),
-                    "https://example.com/modern.schem"),
-            new Build("3", "Fantasy Treehouse", "Author2", "Fantasy",
-                    "An enchanting treehouse in a fantasy setting.",
-                    new ArrayList<>(List.of("Green", "Brown")),
-                    new ArrayList<>(List.of("https://example.com/fantasy1.jpg")),
-                    "https://example.com/fantasy.schem"),
-            new Build("4", "Medieval Bridge", "Author1", "Medieval",
-                    "An impressive medieval bridge perfect for river crossings.",
-                    new ArrayList<>(List.of("Gray", "Dark Gray")),
-                    new ArrayList<>(List.of("https://example.com/medieval_bridge1.jpg")),
-                    "https://example.com/medieval_bridge.schem"),
-            new Build("5", "Enchanted Tower", "Author2", "Fantasy",
-                    "A mystical tower with glowing runes and mysterious vibes.",
-                    new ArrayList<>(List.of("Purple", "Blue")),
-                    new ArrayList<>(List.of("https://example.com/enchanted_tower1.jpg", "https://example.com/enchanted_tower2.jpg")),
-                    "https://example.com/enchanted_tower.schem"),
-            new Build("6", "Modern Skyscraper", "Author3", "Modern",
-                    "A towering skyscraper with a rooftop garden.",
-                    new ArrayList<>(List.of("Silver", "White")),
-                    new ArrayList<>(List.of("https://example.com/modern_skyscraper1.jpg", "https://example.com/modern_skyscraper2.jpg")),
-                    "https://example.com/modern_skyscraper.schem"),
-            new Build("7", "Rustic Cabin", "Author3", "Rustic",
-                    "A cozy cabin nestled in the woods.",
-                    new ArrayList<>(List.of("Brown", "Green")),
-                    new ArrayList<>(List.of("https://example.com/rustic_cabin1.jpg")),
-                    "https://example.com/rustic_cabin.schem"),
-            new Build("8", "Medieval Watchtower", "Author1", "Medieval",
-                    "A sturdy medieval watchtower overlooking the land.",
-                    new ArrayList<>(List.of("Gray", "Red")),
-                    new ArrayList<>(List.of("https://example.com/watchtower1.jpg", "https://example.com/watchtower2.jpg")),
-                    "https://example.com/watchtower.schem"),
-            new Build("9", "Fantasy Floating Island", "Author2", "Fantasy",
-                    "A magical floating island with waterfalls and lush greenery.",
-                    new ArrayList<>(List.of("Blue", "Green")),
-                    new ArrayList<>(List.of("https://example.com/floating_island1.jpg", "https://example.com/floating_island2.jpg")),
-                    "https://example.com/floating_island.schem"),
-            new Build("10", "Modern Beach House", "Author3", "Modern",
-                    "A stylish beach house with panoramic ocean views.",
-                    new ArrayList<>(List.of("White", "Turquoise")),
-                    new ArrayList<>(List.of("https://example.com/beach_house1.jpg")),
-                    "https://example.com/beach_house.schem")
+            Build.builder()
+                    .id("1")
+                    .name("Medieval Castle")
+                    .author(AUTHOR1)
+                    .theme(MEDIEVAL)
+                    .description("A majestic medieval castle with intricate details.")
+                    .colors(List.of("Gray", "Blue"))
+                    .screenshots(List.of("https://example.com/medieval1.jpg", "https://example.com/medieval2.jpg"))
+                    .schemFilePath("https://example.com/medieval.schem")
+                    .build(),
+            Build.builder()
+                    .id("2")
+                    .name("Modern Villa")
+                    .author(AUTHOR1)
+                    .theme(FANTASY)
+                    .description("A sleek modern villa with a swimming pool.")
+                    .colors(List.of("White", "Black", "Gray"))
+                    .screenshots(List.of("https://example.com/modern1.jpg", "https://example.com/modern2.jpg"))
+                    .schemFilePath("https://example.com/modern.schem")
+                    .build(),
+            Build.builder()
+                    .id("3")
+                    .name("Fantasy Treehouse")
+                    .author(AUTHOR2)
+                    .theme(FANTASY)
+                    .description("An enchanting treehouse in a fantasy setting.")
+                    .colors(List.of("Green", "Brown"))
+                    .screenshots(List.of("https://example.com/fantasy1.jpg"))
+                    .schemFilePath("https://example.com/fantasy.schem")
+                    .build(),
+            Build.builder()
+                    .id("4")
+                    .name("Medieval Bridge")
+                    .author(AUTHOR1)
+                    .theme(MEDIEVAL)
+                    .description("An impressive medieval bridge perfect for river crossings.")
+                    .colors(List.of("Gray", "Dark Gray"))
+                    .screenshots(List.of("https://example.com/medieval_bridge1.jpg"))
+                    .schemFilePath("https://example.com/medieval_bridge.schem")
+                    .build(),
+            Build.builder()
+                    .id("5")
+                    .name("Enchanted Tower")
+                    .author(AUTHOR2)
+                    .theme(FANTASY)
+                    .description("A mystical tower with glowing runes and mysterious vibes.")
+                    .colors(List.of("Purple", "Blue"))
+                    .screenshots(List.of("https://example.com/enchanted_tower1.jpg", "https://example.com/enchanted_tower2.jpg"))
+                    .schemFilePath("https://example.com/enchanted_tower.schem")
+                    .build()
     ));
 
     @Override
@@ -74,7 +80,8 @@ public class BuildDaoImpl implements BuildDao {
 
     @Override
     public List<Build> findAll() {
-        return builds;
+        return builds.stream()
+                .toList();
     }
 
     @Override
@@ -88,14 +95,14 @@ public class BuildDaoImpl implements BuildDao {
     public List<Build> findByTheme(String theme) {
         return builds.stream()
                 .filter(build -> build.getTheme().equalsIgnoreCase(theme))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Build> findByAuthor(String author) {
         return builds.stream()
                 .filter(build -> build.getAuthor().equalsIgnoreCase(author))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -114,6 +121,6 @@ public class BuildDaoImpl implements BuildDao {
                                     colors.stream().anyMatch(buildColor::equalsIgnoreCase)
                             );
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 }

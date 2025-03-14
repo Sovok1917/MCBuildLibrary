@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
+import sovok.mcbuildlibrary.exception.NoBuildsFoundException;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.service.BuildService;
 
@@ -27,22 +28,18 @@ public class BuildController {
     public ResponseEntity<Build> getBuildById(@PathVariable String id) {
         return buildService.findBuildById(id)
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseThrow(() -> new NoBuildsFoundException("No build found with ID: " + id));
     }
 
     @GetMapping
     public ResponseEntity<List<Build>> getAllBuilds() {
         List<Build> builds = buildService.findAll();
+        if (builds == null || builds.isEmpty()) {
+            throw new NoBuildsFoundException("No builds are currently available.");
+        }
         return ResponseEntity.ok(builds);
     }
 
-    /**
-     * Returns builds that match the provided query parameters.
-     * All parameters are optional, and they can be combined.
-     * Throws a 400 error if any unknown parameter is provided.
-     * Example query:
-     *   /builds/query?author=John&name=Castle&theme=Medieval&color=red&color=blue
-     */
     @GetMapping("/query")
     public ResponseEntity<List<Build>> getBuildsByQueryParams(
             @RequestParam(required = false) String author,
@@ -51,7 +48,7 @@ public class BuildController {
             @RequestParam(value = "color", required = false) List<String> colors,
             @RequestParam MultiValueMap<String, String> allParams) {
 
-        // Define the allowed query parameter keys.
+        // Validate query parameters
         Set<String> allowedParams = Set.of("author", "name", "theme", "color");
         for (String param : allParams.keySet()) {
             if (!allowedParams.contains(param)) {
@@ -59,12 +56,15 @@ public class BuildController {
             }
         }
 
+        // Filter builds and handle empty results
         List<Build> filteredBuilds = buildService.filterBuilds(author, name, theme, colors);
         if (filteredBuilds == null || filteredBuilds.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            throw new NoBuildsFoundException();
         }
+
         return ResponseEntity.ok(filteredBuilds);
     }
+
 
     // Returns a specific screenshot (by index) for the Build with the given id.
     @GetMapping("/{id}/screenshot")
