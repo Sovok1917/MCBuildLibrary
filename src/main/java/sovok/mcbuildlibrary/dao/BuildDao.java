@@ -1,19 +1,21 @@
 package sovok.mcbuildlibrary.dao;
 
-import java.util.List;
-import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import sovok.mcbuildlibrary.model.Build;
 
-public interface BuildDao {
-    Optional<Build> findById(String id);
+import java.util.List;
 
-    List<Build> findAll();
-
-    Optional<Build> findByName(String name);
-
-    List<Build> findByTheme(String theme);
-
-    List<Build> findByAuthor(String author);
-
-    List<Build> filterBuilds(String author, String name, String theme, List<String> colors);
+public interface BuildDao extends JpaRepository<Build, Long> {
+    @Query("SELECT DISTINCT b FROM Build b LEFT JOIN b.colors c WHERE " +
+            "(:author IS NULL OR b.author = :author) AND " +
+            "(:name IS NULL OR b.name = :name) AND " +
+            "(:theme IS NULL OR b.theme = :theme) AND " +
+            "(:colorsEmpty = true OR c IN :colors)")
+    List<Build> filterBuilds(@Param("author") String author,
+                             @Param("name") String name,
+                             @Param("theme") String theme,
+                             @Param("colors") List<String> colors,
+                             @Param("colorsEmpty") boolean colorsEmpty);
 }
