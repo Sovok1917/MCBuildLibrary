@@ -12,8 +12,6 @@ public class BuildDaoImpl implements BuildDao {
 
     // Constants for reused strings.
     private static final String AUTHOR1 = "Author1";
-    private static final String AUTHOR2 = "Author2";
-
     private static final String MEDIEVAL = "Medieval";
     private static final String FANTASY = "Fantasy";
 
@@ -38,36 +36,6 @@ public class BuildDaoImpl implements BuildDao {
                     .colors(List.of("White", "Black", "Gray"))
                     .screenshots(List.of("https://example.com/modern1.jpg", "https://example.com/modern2.jpg"))
                     .schemFilePath("https://example.com/modern.schem")
-                    .build(),
-            Build.builder()
-                    .id("3")
-                    .name("Fantasy Treehouse")
-                    .author(AUTHOR2)
-                    .theme(FANTASY)
-                    .description("An enchanting treehouse in a fantasy setting.")
-                    .colors(List.of("Green", "Brown"))
-                    .screenshots(List.of("https://example.com/fantasy1.jpg"))
-                    .schemFilePath("https://example.com/fantasy.schem")
-                    .build(),
-            Build.builder()
-                    .id("4")
-                    .name("Medieval Bridge")
-                    .author(AUTHOR1)
-                    .theme(MEDIEVAL)
-                    .description("An impressive medieval bridge perfect for river crossings.")
-                    .colors(List.of("Gray", "Dark Gray"))
-                    .screenshots(List.of("https://example.com/medieval_bridge1.jpg"))
-                    .schemFilePath("https://example.com/medieval_bridge.schem")
-                    .build(),
-            Build.builder()
-                    .id("5")
-                    .name("Enchanted Tower")
-                    .author(AUTHOR2)
-                    .theme(FANTASY)
-                    .description("A mystical tower with glowing runes and mysterious vibes.")
-                    .colors(List.of("Purple", "Blue"))
-                    .screenshots(List.of("https://example.com/enchanted_tower1.jpg", "https://example.com/enchanted_tower2.jpg"))
-                    .schemFilePath("https://example.com/enchanted_tower.schem")
                     .build()
     ));
 

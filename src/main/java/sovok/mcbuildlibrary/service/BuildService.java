@@ -27,14 +27,4 @@ public class BuildService {
     public List<Build> filterBuilds(String author, String name, String theme, List<String> colors) {
         return buildDao.filterBuilds(author, name, theme, colors);
     }
-
-    public Optional<String> getScreenshot(String id, int index) {
-        return findBuildById(id)
-                .flatMap(build -> {
-                    if (index < 0 || index >= build.getScreenshots().size()) {
-                        return Optional.empty();
-                    }
-                    return Optional.of(build.getScreenshots().get(index));
-                });
-    }
 }
