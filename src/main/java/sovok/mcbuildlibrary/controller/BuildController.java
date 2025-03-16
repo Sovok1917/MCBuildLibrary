@@ -64,14 +64,4 @@ public class BuildController {
 
         return ResponseEntity.ok(filteredBuilds);
     }
-
-
-    // Returns a specific screenshot (by index) for the Build with the given id.
-    @GetMapping("/{id}/screenshot")
-    public ResponseEntity<String> getScreenshot(@PathVariable String id,
-                                                @RequestParam int index) {
-        return buildService.getScreenshot(id, index)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
 }
