@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface BuildDao extends JpaRepository<Build, Long> {
     @Query("SELECT DISTINCT b FROM Build b LEFT JOIN b.colors c WHERE " +
-            "(:author IS NULL OR b.author = :author) AND " +
+            "(:author IS NULL OR b.author.name = :author) AND " +
             "(:name IS NULL OR b.name = :name) AND " +
             "(:theme IS NULL OR b.theme = :theme) AND " +
             "(:colorsEmpty = true OR c IN :colors)")

@@ -52,7 +52,7 @@ public class BuildService {
                     existingBuild.setDescription(updatedBuild.getDescription());
                     existingBuild.setColors(updatedBuild.getColors());
                     existingBuild.setScreenshots(updatedBuild.getScreenshots());
-                    existingBuild.setSchemFile(updatedBuild.getSchemFile()); // Updated field
+                    existingBuild.setSchemFile(updatedBuild.getSchemFile());
                     return buildDao.save(existingBuild);
                 })
                 .orElseThrow(() -> new IllegalArgumentException("Build with ID " + id + " not found"));

@@ -8,7 +8,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
 import sovok.mcbuildlibrary.exception.NoBuildsFoundException;
+import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.model.Build;
+import sovok.mcbuildlibrary.service.AuthorService;
 import sovok.mcbuildlibrary.service.BuildService;
 
 import java.io.IOException;
@@ -19,21 +21,23 @@ import java.util.List;
 public class BuildController {
 
     private final BuildService buildService;
+    private final AuthorService authorService;
 
-    public BuildController(BuildService buildService) {
+    public BuildController(BuildService buildService, AuthorService authorService) {
         this.buildService = buildService;
+        this.authorService = authorService;
     }
 
-    // Create with file upload
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Build> createBuild(
             @RequestParam("name") String name,
-            @RequestParam("author") String author,
+            @RequestParam("author") String authorName,
             @RequestParam("theme") String theme,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam("colors") List<String> colors,
             @RequestParam(value = "screenshots", required = false) List<String> screenshots,
             @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
+        Author author = authorService.findOrCreateAuthor(authorName);
         Build build = Build.builder()
                 .name(name)
                 .author(author)
@@ -47,7 +51,6 @@ public class BuildController {
         return new ResponseEntity<>(createdBuild, HttpStatus.CREATED);
     }
 
-    // Read
     @GetMapping("/{id}")
     public ResponseEntity<Build> getBuildById(@PathVariable String id) {
         try {
@@ -95,12 +98,11 @@ public class BuildController {
         }
     }
 
-    // Update with file upload
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Build> updateBuild(
             @PathVariable String id,
             @RequestParam("name") String name,
-            @RequestParam("author") String author,
+            @RequestParam("author") String authorName,
             @RequestParam("theme") String theme,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam("colors") List<String> colors,
@@ -108,6 +110,7 @@ public class BuildController {
             @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
         try {
             Long buildId = Long.valueOf(id);
+            Author author = authorService.findOrCreateAuthor(authorName);
             Build updatedBuild = Build.builder()
                     .name(name)
                     .author(author)
@@ -126,7 +129,6 @@ public class BuildController {
         }
     }
 
-    // Delete
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBuild(@PathVariable String id) {
         try {
@@ -140,7 +142,6 @@ public class BuildController {
         }
     }
 
-    // New endpoint to download the schem file
     @GetMapping("/{id}/schem")
     public ResponseEntity<byte[]> getSchemFile(@PathVariable String id) {
         try {

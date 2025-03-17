@@ -23,8 +23,9 @@ public class Build {
     @NotBlank(message = "Name is mandatory")
     private String name;
 
-    @NotBlank(message = "Author is mandatory")
-    private String author;
+    @ManyToOne
+    @JoinColumn(name = "author_id", nullable = false)
+    private Author author;
 
     @NotBlank(message = "Theme is mandatory")
     private String theme;
