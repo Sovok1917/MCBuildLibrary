@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
-import sovok.mcbuildlibrary.exception.NoBuildsFoundException;
+import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.service.AuthorService;
@@ -57,7 +57,7 @@ public class BuildController {
             Long buildId = Long.valueOf(id);
             return buildService.findBuildById(buildId)
                     .map(ResponseEntity::ok)
-                    .orElseThrow(() -> new NoBuildsFoundException("No build found with ID: " + id));
+                    .orElseThrow(() -> new ResourceNotFoundException("No build found with ID: " + id));
         } catch (NumberFormatException e) {
             throw new InvalidQueryParameterException("Invalid ID format: " + id);
         }
@@ -67,7 +67,7 @@ public class BuildController {
     public ResponseEntity<List<Build>> getAllBuilds() {
         List<Build> builds = buildService.findAll();
         if (builds == null || builds.isEmpty()) {
-            throw new NoBuildsFoundException("No builds are currently available.");
+            throw new ResourceNotFoundException("No builds are currently available");
         }
         return ResponseEntity.ok(builds);
     }
@@ -80,7 +80,7 @@ public class BuildController {
             @RequestParam(value = "color", required = false) List<String> colors) {
         List<Build> filteredBuilds = buildService.filterBuilds(author, name, theme, colors);
         if (filteredBuilds == null || filteredBuilds.isEmpty()) {
-            throw new NoBuildsFoundException();
+            throw new ResourceNotFoundException("No builds found matching the query");
         }
         return ResponseEntity.ok(filteredBuilds);
     }
@@ -125,7 +125,7 @@ public class BuildController {
         } catch (NumberFormatException e) {
             throw new InvalidQueryParameterException("Invalid ID format: " + id);
         } catch (IllegalArgumentException e) {
-            throw new NoBuildsFoundException(e.getMessage());
+            throw new ResourceNotFoundException(e.getMessage());
         }
     }
 
@@ -138,7 +138,7 @@ public class BuildController {
         } catch (NumberFormatException e) {
             throw new InvalidQueryParameterException("Invalid ID format: " + id);
         } catch (IllegalArgumentException e) {
-            throw new NoBuildsFoundException(e.getMessage());
+            throw new ResourceNotFoundException(e.getMessage());
         }
     }
 
@@ -146,14 +146,16 @@ public class BuildController {
     public ResponseEntity<byte[]> getSchemFile(@PathVariable String id) {
         try {
             Long buildId = Long.valueOf(id);
-            return buildService.findBuildById(buildId)
-                    .map(build -> {
-                        HttpHeaders headers = new HttpHeaders();
-                        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-                        headers.setContentDispositionFormData("attachment", build.getName() + ".schem");
-                        return new ResponseEntity<>(build.getSchemFile(), headers, HttpStatus.OK);
-                    })
-                    .orElseThrow(() -> new NoBuildsFoundException("No build found with ID: " + id));
+            Build build = buildService.findBuildById(buildId)
+                    .orElseThrow(() -> new ResourceNotFoundException("No build found with ID: " + id));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            String filename = build.getName().replaceAll("[^a-zA-Z0-9-_ ]", "") + ".schem";
+            headers.setContentDispositionFormData("attachment", filename);
+            headers.setContentLength(build.getSchemFile().length);
+
+            return new ResponseEntity<>(build.getSchemFile(), headers, HttpStatus.OK);
         } catch (NumberFormatException e) {
             throw new InvalidQueryParameterException("Invalid ID format: " + id);
         }
