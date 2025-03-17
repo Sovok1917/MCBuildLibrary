@@ -2,6 +2,7 @@ package sovok.mcbuildlibrary.service;
 
 import org.springframework.stereotype.Service;
 import sovok.mcbuildlibrary.dao.BuildDao;
+import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Build;
 
 import java.util.List;
@@ -55,12 +56,12 @@ public class BuildService {
                     existingBuild.setSchemFile(updatedBuild.getSchemFile());
                     return buildDao.save(existingBuild);
                 })
-                .orElseThrow(() -> new IllegalArgumentException("Build with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Build with ID " + id + " not found"));
     }
 
     public void deleteBuild(Long id) {
         if (!buildDao.existsById(id)) {
-            throw new IllegalArgumentException("Build with ID " + id + " not found");
+            throw new ResourceNotFoundException("Build with ID " + id + " not found");
         }
         buildDao.deleteById(id);
     }
