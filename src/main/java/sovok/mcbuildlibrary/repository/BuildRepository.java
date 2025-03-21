@@ -1,4 +1,4 @@
-package sovok.mcbuildlibrary.dao;
+package sovok.mcbuildlibrary.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -8,7 +8,7 @@ import sovok.mcbuildlibrary.model.Build;
 
 import java.util.List;
 
-public interface BuildDao extends JpaRepository<Build, Long> {
+public interface BuildRepository extends JpaRepository<Build, Long> {
 
     @Query("SELECT b FROM Build b " +
             "WHERE (:author IS NULL OR b.author.name = :author) " +

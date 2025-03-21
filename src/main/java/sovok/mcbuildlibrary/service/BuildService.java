@@ -1,7 +1,7 @@
 package sovok.mcbuildlibrary.service;
 
 import org.springframework.stereotype.Service;
-import sovok.mcbuildlibrary.dao.BuildDao;
+import sovok.mcbuildlibrary.repository.BuildRepository;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Build;
 
@@ -11,27 +11,27 @@ import java.util.Optional;
 @Service
 public class BuildService {
 
-    private final BuildDao buildDao;
+    private final BuildRepository buildRepository;
 
-    public BuildService(BuildDao buildDao) {
-        this.buildDao = buildDao;
+    public BuildService(BuildRepository buildRepository) {
+        this.buildRepository = buildRepository;
     }
 
     public Build createBuild(Build build) {
-        return buildDao.save(build);
+        return buildRepository.save(build);
     }
 
     public Optional<Build> findBuildById(Long id) {
-        return buildDao.findById(id);
+        return buildRepository.findById(id);
     }
 
     public List<Build> findAll() {
-        return buildDao.findAll();
+        return buildRepository.findAll();
     }
 
     public List<Build> filterBuilds(String author, String name, String theme, List<String> colors) {
         boolean colorsEmpty = colors == null || colors.isEmpty();
-        return buildDao.filterBuilds(author, name, theme, colors, colorsEmpty);
+        return buildRepository.filterBuilds(author, name, theme, colors, colorsEmpty);
     }
 
     public Optional<String> getScreenshot(Long id, int index) {
@@ -45,7 +45,7 @@ public class BuildService {
     }
 
     public Build updateBuild(Long id, Build updatedBuild) {
-        return buildDao.findById(id)
+        return buildRepository.findById(id)
                 .map(existingBuild -> {
                     existingBuild.setName(updatedBuild.getName());
                     existingBuild.setAuthor(updatedBuild.getAuthor());
@@ -54,15 +54,15 @@ public class BuildService {
                     existingBuild.setColors(updatedBuild.getColors());
                     existingBuild.setScreenshots(updatedBuild.getScreenshots());
                     existingBuild.setSchemFile(updatedBuild.getSchemFile());
-                    return buildDao.save(existingBuild);
+                    return buildRepository.save(existingBuild);
                 })
                 .orElseThrow(() -> new ResourceNotFoundException("Build with ID " + id + " not found"));
     }
 
     public void deleteBuild(Long id) {
-        if (!buildDao.existsById(id)) {
+        if (!buildRepository.existsById(id)) {
             throw new ResourceNotFoundException("Build with ID " + id + " not found");
         }
-        buildDao.deleteById(id);
+        buildRepository.deleteById(id);
     }
 }
