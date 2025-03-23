@@ -48,7 +48,7 @@ public class BuildService {
         return buildRepository.findById(id)
                 .map(existingBuild -> {
                     existingBuild.setName(updatedBuild.getName());
-                    existingBuild.setAuthor(updatedBuild.getAuthor());
+                    existingBuild.setAuthors(updatedBuild.getAuthors());
                     existingBuild.setTheme(updatedBuild.getTheme());
                     existingBuild.setDescription(updatedBuild.getDescription());
                     existingBuild.setColors(updatedBuild.getColors());

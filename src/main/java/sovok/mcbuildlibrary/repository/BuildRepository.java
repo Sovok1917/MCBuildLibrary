@@ -11,7 +11,7 @@ import java.util.List;
 public interface BuildRepository extends JpaRepository<Build, Long> {
 
     @Query("SELECT b FROM Build b " +
-            "WHERE (:author IS NULL OR b.author.name = :author) " +
+            "WHERE (:author IS NULL OR EXISTS (SELECT a FROM b.authors a WHERE a.name = :author)) " +
             "AND (:name IS NULL OR b.name = :name) " +
             "AND (:theme IS NULL OR b.theme = :theme) " +
             "AND (:colorsEmpty = true OR EXISTS (SELECT c FROM b.colors c WHERE c IN :colors))")
@@ -22,5 +22,6 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
     @Query(value = "DELETE FROM build_screenshots WHERE build_id = :buildId", nativeQuery = true)
     void deleteScreenshotsByBuildId(Long buildId);
 
-    long countByAuthorId(Long authorId);
+    @Query("SELECT COUNT(b) FROM Build b JOIN b.authors a WHERE a.id = :authorId")
+    long countByAuthorsId(Long authorId);
 }

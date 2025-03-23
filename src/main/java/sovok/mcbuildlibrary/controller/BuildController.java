@@ -15,6 +15,8 @@ import sovok.mcbuildlibrary.service.BuildService;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/builds")
@@ -31,16 +33,18 @@ public class BuildController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Build> createBuild(
             @RequestParam("name") String name,
-            @RequestParam("author") String authorName,
+            @RequestParam("authors") List<String> authorNames,
             @RequestParam("theme") String theme,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam("colors") List<String> colors,
             @RequestParam(value = "screenshots", required = false) List<String> screenshots,
             @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
-        Author author = authorService.findOrCreateAuthor(authorName);
+        Set<Author> authors = authorNames.stream()
+                .map(authorService::findOrCreateAuthor)
+                .collect(Collectors.toSet());
         Build build = Build.builder()
                 .name(name)
-                .author(author)
+                .authors(authors)
                 .theme(theme)
                 .description(description)
                 .colors(colors)
@@ -102,7 +106,7 @@ public class BuildController {
     public ResponseEntity<Build> updateBuild(
             @PathVariable String id,
             @RequestParam("name") String name,
-            @RequestParam("author") String authorName,
+            @RequestParam("authors") List<String> authorNames,
             @RequestParam("theme") String theme,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam("colors") List<String> colors,
@@ -110,10 +114,12 @@ public class BuildController {
             @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
         try {
             Long buildId = Long.valueOf(id);
-            Author author = authorService.findOrCreateAuthor(authorName);
+            Set<Author> authors = authorNames.stream()
+                    .map(authorService::findOrCreateAuthor)
+                    .collect(Collectors.toSet());
             Build updatedBuild = Build.builder()
                     .name(name)
-                    .author(author)
+                    .authors(authors)
                     .theme(theme)
                     .description(description)
                     .colors(colors)

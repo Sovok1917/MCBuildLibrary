@@ -20,7 +20,40 @@ public class AuthorController {
         this.authorService = authorService;
     }
 
-    // ... other methods unchanged ...
+    @PostMapping
+    public ResponseEntity<Author> createAuthor(@RequestParam("name") String name) {
+        Author author = authorService.createAuthor(name);
+        return new ResponseEntity<>(author, HttpStatus.CREATED);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Author>> getAllAuthors() {
+        List<Author> authors = authorService.findAllAuthors();
+        return ResponseEntity.ok(authors);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Author> getAuthorById(@PathVariable String id) {
+        try {
+            Long authorId = Long.valueOf(id);
+            Author author = authorService.findAuthorById(authorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id + " not found"));
+            return ResponseEntity.ok(author);
+        } catch (NumberFormatException e) {
+            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Author> updateAuthor(@PathVariable String id, @RequestParam("name") String name) {
+        try {
+            Long authorId = Long.valueOf(id);
+            Author updatedAuthor = authorService.updateAuthor(authorId, name);
+            return ResponseEntity.ok(updatedAuthor);
+        } catch (NumberFormatException e) {
+            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+        }
+    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAuthor(@PathVariable String id) {
@@ -33,5 +66,3 @@ public class AuthorController {
         }
     }
 }
-
-record AuthorRequest(String name) {}
