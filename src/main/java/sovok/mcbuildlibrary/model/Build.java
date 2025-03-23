@@ -25,7 +25,7 @@ public class Build {
 
     private String name;
 
-    @ManyToMany
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
             name = "build_authors",
             joinColumns = @JoinColumn(name = "build_id"),
@@ -33,7 +33,7 @@ public class Build {
     )
     private Set<Author> authors = new HashSet<>();
 
-    @ManyToMany
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
             name = "build_themes",
             joinColumns = @JoinColumn(name = "build_id"),
@@ -43,7 +43,7 @@ public class Build {
 
     private String description;
 
-    @ManyToMany
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
             name = "build_colors",
             joinColumns = @JoinColumn(name = "build_id"),
