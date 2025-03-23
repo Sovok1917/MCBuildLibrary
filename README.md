@@ -1,9 +1,3 @@
-Let’s update the `README.md` file for your `MCBuildLibrary` project to reflect its current state, improve clarity, and add some enhancements to make it more professional and user-friendly. I’ll ensure the content aligns with the project’s features (e.g., updated field names like `themes` instead of `theme`, `authors` instead of `author`, etc.) and include additional sections for better documentation.
-
-Here’s the revised `README.md`:
-
----
-
 # MCBuildLibrary
 
 *A Spring Boot application for sharing Minecraft builds through `.schematic` files.*
