@@ -1,13 +1,11 @@
-// file: src/main/java/sovok/mcbuildlibrary/service/ThemeService.java
 package sovok.mcbuildlibrary.service;
-
-import org.springframework.stereotype.Service;
-import sovok.mcbuildlibrary.model.Theme;
-import sovok.mcbuildlibrary.repository.ThemeRepository;
-import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.stereotype.Service;
+import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.model.Theme;
+import sovok.mcbuildlibrary.repository.ThemeRepository;
 
 @Service
 public class ThemeService {
@@ -27,7 +25,8 @@ public class ThemeService {
 
     public Theme createTheme(String name) {
         if (themeRepository.findByName(name).isPresent()) {
-            throw new IllegalArgumentException("Theme with name '" + name + "' already exists");
+            throw new IllegalArgumentException(
+                    "Theme with name '" + name + "' already exists");
         }
         Theme theme = Theme.builder().name(name).build();
         return themeRepository.save(theme);
@@ -48,13 +47,16 @@ public class ThemeService {
     public Theme updateTheme(Long id, String newName) {
         return themeRepository.findById(id)
                 .map(theme -> {
-                    if (themeRepository.findByName(newName).isPresent() && !theme.getName().equals(newName)) {
-                        throw new IllegalArgumentException("Another theme with name '" + newName + "' already exists");
+                    if (themeRepository.findByName(newName).isPresent()
+                            && !theme.getName().equals(newName)) {
+                        throw new IllegalArgumentException(
+                                "Another theme with name '" + newName + "' already exists");
                     }
                     theme.setName(newName);
                     return themeRepository.save(theme);
                 })
-                .orElseThrow(() -> new ResourceNotFoundException("Theme with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Theme with ID " + id + " not found"));
     }
 
     public void deleteTheme(Long id) {

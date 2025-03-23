@@ -1,13 +1,11 @@
-// file: src/main/java/sovok/mcbuildlibrary/service/BuildService.java
 package sovok.mcbuildlibrary.service;
-
-import org.springframework.stereotype.Service;
-import sovok.mcbuildlibrary.repository.BuildRepository;
-import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
-import sovok.mcbuildlibrary.model.Build;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.stereotype.Service;
+import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.model.Build;
+import sovok.mcbuildlibrary.repository.BuildRepository;
 
 @Service
 public class BuildService {
@@ -57,7 +55,8 @@ public class BuildService {
                     existingBuild.setSchemFile(updatedBuild.getSchemFile());
                     return buildRepository.save(existingBuild);
                 })
-                .orElseThrow(() -> new ResourceNotFoundException("Build with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Build with ID " + id + " not found"));
     }
 
     public void deleteBuild(Long id) {

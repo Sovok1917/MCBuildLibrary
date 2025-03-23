@@ -1,17 +1,26 @@
-// file: src/main/java/sovok/mcbuildlibrary/model/Build.java
 package sovok.mcbuildlibrary.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToMany;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Cascade;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import org.hibernate.annotations.CascadeType;
 
 @Entity
 @Data
@@ -25,7 +34,7 @@ public class Build {
 
     private String name;
 
-    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @ManyToMany
     @JoinTable(
             name = "build_authors",
             joinColumns = @JoinColumn(name = "build_id"),
@@ -33,7 +42,7 @@ public class Build {
     )
     private Set<Author> authors = new HashSet<>();
 
-    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @ManyToMany
     @JoinTable(
             name = "build_themes",
             joinColumns = @JoinColumn(name = "build_id"),
@@ -43,7 +52,7 @@ public class Build {
 
     private String description;
 
-    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @ManyToMany
     @JoinTable(
             name = "build_colors",
             joinColumns = @JoinColumn(name = "build_id"),
@@ -54,7 +63,7 @@ public class Build {
     @ElementCollection
     @CollectionTable(name = "build_screenshots", joinColumns = @JoinColumn(name = "build_id"))
     @Column(name = "screenshot")
-    @Cascade(org.hibernate.annotations.CascadeType.ALL)
+    @Cascade(CascadeType.ALL)
     private List<String> screenshots;
 
     @Lob
