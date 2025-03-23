@@ -7,10 +7,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Cascade;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Data
@@ -24,10 +24,13 @@ public class Build {
 
     private String name;
 
-    @ManyToOne
-    @JoinColumn(name = "author_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    private Author author;
+    @ManyToMany
+    @JoinTable(
+            name = "build_authors",
+            joinColumns = @JoinColumn(name = "build_id"),
+            inverseJoinColumns = @JoinColumn(name = "author_id")
+    )
+    private Set<Author> authors = new HashSet<>();
 
     private String theme;
 
