@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/controller/BuildController.java
 package sovok.mcbuildlibrary.controller;
 
 import org.springframework.http.HttpHeaders;
@@ -10,8 +11,12 @@ import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.model.Build;
+import sovok.mcbuildlibrary.model.Color;
+import sovok.mcbuildlibrary.model.Theme;
 import sovok.mcbuildlibrary.service.AuthorService;
 import sovok.mcbuildlibrary.service.BuildService;
+import sovok.mcbuildlibrary.service.ColorService;
+import sovok.mcbuildlibrary.service.ThemeService;
 
 import java.io.IOException;
 import java.util.List;
@@ -24,28 +29,39 @@ public class BuildController {
 
     private final BuildService buildService;
     private final AuthorService authorService;
+    private final ThemeService themeService;
+    private final ColorService colorService;
 
-    public BuildController(BuildService buildService, AuthorService authorService) {
+    public BuildController(BuildService buildService, AuthorService authorService,
+                           ThemeService themeService, ColorService colorService) {
         this.buildService = buildService;
         this.authorService = authorService;
+        this.themeService = themeService;
+        this.colorService = colorService;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Build> createBuild(
             @RequestParam("name") String name,
             @RequestParam("authors") List<String> authorNames,
-            @RequestParam("theme") String theme,
+            @RequestParam("themes") List<String> themeNames,
             @RequestParam(value = "description", required = false) String description,
-            @RequestParam("colors") List<String> colors,
+            @RequestParam("colors") List<String> colorNames,
             @RequestParam(value = "screenshots", required = false) List<String> screenshots,
             @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
         Set<Author> authors = authorNames.stream()
                 .map(authorService::findOrCreateAuthor)
                 .collect(Collectors.toSet());
+        Set<Theme> themes = themeNames.stream()
+                .map(themeService::findOrCreateTheme)
+                .collect(Collectors.toSet());
+        Set<Color> colors = colorNames.stream()
+                .map(colorService::findOrCreateColor)
+                .collect(Collectors.toSet());
         Build build = Build.builder()
                 .name(name)
                 .authors(authors)
-                .theme(theme)
+                .themes(themes)
                 .description(description)
                 .colors(colors)
                 .screenshots(screenshots)
@@ -107,9 +123,9 @@ public class BuildController {
             @PathVariable String id,
             @RequestParam("name") String name,
             @RequestParam("authors") List<String> authorNames,
-            @RequestParam("theme") String theme,
+            @RequestParam("themes") List<String> themeNames,
             @RequestParam(value = "description", required = false) String description,
-            @RequestParam("colors") List<String> colors,
+            @RequestParam("colors") List<String> colorNames,
             @RequestParam(value = "screenshots", required = false) List<String> screenshots,
             @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
         try {
@@ -117,10 +133,16 @@ public class BuildController {
             Set<Author> authors = authorNames.stream()
                     .map(authorService::findOrCreateAuthor)
                     .collect(Collectors.toSet());
+            Set<Theme> themes = themeNames.stream()
+                    .map(themeService::findOrCreateTheme)
+                    .collect(Collectors.toSet());
+            Set<Color> colors = colorNames.stream()
+                    .map(colorService::findOrCreateColor)
+                    .collect(Collectors.toSet());
             Build updatedBuild = Build.builder()
                     .name(name)
                     .authors(authors)
-                    .theme(theme)
+                    .themes(themes)
                     .description(description)
                     .colors(colors)
                     .screenshots(screenshots)

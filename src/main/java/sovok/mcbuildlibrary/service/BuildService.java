@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/service/BuildService.java
 package sovok.mcbuildlibrary.service;
 
 import org.springframework.stereotype.Service;
@@ -49,7 +50,7 @@ public class BuildService {
                 .map(existingBuild -> {
                     existingBuild.setName(updatedBuild.getName());
                     existingBuild.setAuthors(updatedBuild.getAuthors());
-                    existingBuild.setTheme(updatedBuild.getTheme());
+                    existingBuild.setThemes(updatedBuild.getThemes());
                     existingBuild.setDescription(updatedBuild.getDescription());
                     existingBuild.setColors(updatedBuild.getColors());
                     existingBuild.setScreenshots(updatedBuild.getScreenshots());

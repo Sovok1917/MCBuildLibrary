@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/model/Build.java
 package sovok.mcbuildlibrary.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -32,15 +33,23 @@ public class Build {
     )
     private Set<Author> authors = new HashSet<>();
 
-    private String theme;
+    @ManyToMany
+    @JoinTable(
+            name = "build_themes",
+            joinColumns = @JoinColumn(name = "build_id"),
+            inverseJoinColumns = @JoinColumn(name = "theme_id")
+    )
+    private Set<Theme> themes = new HashSet<>();
 
     private String description;
 
-    @ElementCollection
-    @CollectionTable(name = "build_colors", joinColumns = @JoinColumn(name = "build_id"))
-    @Column(name = "color")
-    @Cascade(org.hibernate.annotations.CascadeType.ALL)
-    private List<String> colors;
+    @ManyToMany
+    @JoinTable(
+            name = "build_colors",
+            joinColumns = @JoinColumn(name = "build_id"),
+            inverseJoinColumns = @JoinColumn(name = "color_id")
+    )
+    private Set<Color> colors = new HashSet<>();
 
     @ElementCollection
     @CollectionTable(name = "build_screenshots", joinColumns = @JoinColumn(name = "build_id"))
