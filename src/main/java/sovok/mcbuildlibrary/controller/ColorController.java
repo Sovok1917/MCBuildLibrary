@@ -1,15 +1,21 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/ColorController.java
 package sovok.mcbuildlibrary.controller;
 
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Color;
 import sovok.mcbuildlibrary.service.ColorService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/colors")
@@ -38,21 +44,23 @@ public class ColorController {
         try {
             Long colorId = Long.valueOf(id);
             Color color = colorService.findColorById(colorId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + id + " not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Color with ID " + id + " not found"));
             return ResponseEntity.ok(color);
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Color> updateColor(@PathVariable String id, @RequestParam("name") String name) {
+    public ResponseEntity<Color> updateColor(@PathVariable String id, @RequestParam("name")
+        String name) {
         try {
             Long colorId = Long.valueOf(id);
             Color updatedColor = colorService.updateColor(colorId, name);
             return ResponseEntity.ok(updatedColor);
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
 
@@ -63,7 +71,7 @@ public class ColorController {
             colorService.deleteColor(colorId);
             return ResponseEntity.noContent().build();
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
 }

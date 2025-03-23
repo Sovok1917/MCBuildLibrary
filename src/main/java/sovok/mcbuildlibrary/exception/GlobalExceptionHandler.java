@@ -11,21 +11,24 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidQueryParameterException.class)
-    public ResponseEntity<ProblemDetail> handleInvalidQueryParameterException(InvalidQueryParameterException ex) {
+    public ResponseEntity<ProblemDetail> handleInvalidQueryParameterException(
+            InvalidQueryParameterException ex) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         pd.setDetail(ex.getMessage());
         return ResponseEntity.badRequest().body(pd);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ProblemDetail> handleNoBuildsFoundException(NoResourceFoundException ex) {
+    public ResponseEntity<ProblemDetail> handleNoBuildsFoundException(
+            NoResourceFoundException ex) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
         pd.setDetail(ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleResourceNotFoundException(ResourceNotFoundException ex) {
+    public ResponseEntity<ProblemDetail> handleResourceNotFoundException(
+            ResourceNotFoundException ex) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
         pd.setDetail(ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);

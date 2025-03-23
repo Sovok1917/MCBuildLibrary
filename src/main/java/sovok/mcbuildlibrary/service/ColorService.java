@@ -1,13 +1,11 @@
-// file: src/main/java/sovok/mcbuildlibrary/service/ColorService.java
 package sovok.mcbuildlibrary.service;
-
-import org.springframework.stereotype.Service;
-import sovok.mcbuildlibrary.model.Color;
-import sovok.mcbuildlibrary.repository.ColorRepository;
-import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.stereotype.Service;
+import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.model.Color;
+import sovok.mcbuildlibrary.repository.ColorRepository;
 
 @Service
 public class ColorService {
@@ -27,7 +25,8 @@ public class ColorService {
 
     public Color createColor(String name) {
         if (colorRepository.findByName(name).isPresent()) {
-            throw new IllegalArgumentException("Color with name '" + name + "' already exists");
+            throw new IllegalArgumentException(
+                    "Color with name '" + name + "' already exists");
         }
         Color color = Color.builder().name(name).build();
         return colorRepository.save(color);
@@ -48,13 +47,16 @@ public class ColorService {
     public Color updateColor(Long id, String newName) {
         return colorRepository.findById(id)
                 .map(color -> {
-                    if (colorRepository.findByName(newName).isPresent() && !color.getName().equals(newName)) {
-                        throw new IllegalArgumentException("Another color with name '" + newName + "' already exists");
+                    if (colorRepository.findByName(newName).isPresent()
+                            && !color.getName().equals(newName)) {
+                        throw new IllegalArgumentException(
+                                "Another color with name '" + newName + "' already exists");
                     }
                     color.setName(newName);
                     return colorRepository.save(color);
                 })
-                .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Color with ID " + id + " not found"));
     }
 
     public void deleteColor(Long id) {

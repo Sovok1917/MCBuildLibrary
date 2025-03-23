@@ -1,15 +1,21 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/ThemeController.java
 package sovok.mcbuildlibrary.controller;
 
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Theme;
 import sovok.mcbuildlibrary.service.ThemeService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/themes")
@@ -38,21 +44,23 @@ public class ThemeController {
         try {
             Long themeId = Long.valueOf(id);
             Theme theme = themeService.findThemeById(themeId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Theme with ID " + id + " not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Theme with ID " + id + " not found"));
             return ResponseEntity.ok(theme);
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Theme> updateTheme(@PathVariable String id, @RequestParam("name") String name) {
+    public ResponseEntity<Theme> updateTheme(@PathVariable String id, @RequestParam("name")
+        String name) {
         try {
             Long themeId = Long.valueOf(id);
             Theme updatedTheme = themeService.updateTheme(themeId, name);
             return ResponseEntity.ok(updatedTheme);
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
 
@@ -63,7 +71,7 @@ public class ThemeController {
             themeService.deleteTheme(themeId);
             return ResponseEntity.noContent().build();
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
 }

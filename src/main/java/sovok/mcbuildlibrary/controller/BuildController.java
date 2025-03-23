@@ -1,12 +1,23 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/BuildController.java
 package sovok.mcbuildlibrary.controller;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Author;
@@ -17,11 +28,6 @@ import sovok.mcbuildlibrary.service.AuthorService;
 import sovok.mcbuildlibrary.service.BuildService;
 import sovok.mcbuildlibrary.service.ColorService;
 import sovok.mcbuildlibrary.service.ThemeService;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/builds")
@@ -40,15 +46,11 @@ public class BuildController {
         this.colorService = colorService;
     }
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Build> createBuild(
-            @RequestParam("name") String name,
-            @RequestParam("authors") List<String> authorNames,
-            @RequestParam("themes") List<String> themeNames,
-            @RequestParam(value = "description", required = false) String description,
-            @RequestParam("colors") List<String> colorNames,
-            @RequestParam(value = "screenshots", required = false) List<String> screenshots,
-            @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
+    private Build createBuildFromParams(String name, List<String> authorNames,
+                                        List<String> themeNames,
+                                        String description, List<String> colorNames,
+                                        List<String> screenshots,
+                                        MultipartFile schemFile) throws IOException {
         Set<Author> authors = authorNames.stream()
                 .map(authorService::findOrCreateAuthor)
                 .collect(Collectors.toSet());
@@ -58,7 +60,7 @@ public class BuildController {
         Set<Color> colors = colorNames.stream()
                 .map(colorService::findOrCreateColor)
                 .collect(Collectors.toSet());
-        Build build = Build.builder()
+        return Build.builder()
                 .name(name)
                 .authors(authors)
                 .themes(themes)
@@ -67,6 +69,19 @@ public class BuildController {
                 .screenshots(screenshots)
                 .schemFile(schemFile.getBytes())
                 .build();
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Build> createBuild(
+            @RequestParam("name") String name,
+            @RequestParam("authors") List<String> authorNames,
+            @RequestParam("themes") List<String> themeNames,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam("colors") List<String> colorNames,
+            @RequestParam(value = "screenshots", required = false) List<String> screenshots,
+            @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
+        Build build = createBuildFromParams(name, authorNames, themeNames, description, colorNames,
+                screenshots, schemFile);
         Build createdBuild = buildService.createBuild(build);
         return new ResponseEntity<>(createdBuild, HttpStatus.CREATED);
     }
@@ -77,9 +92,10 @@ public class BuildController {
             Long buildId = Long.valueOf(id);
             return buildService.findBuildById(buildId)
                     .map(ResponseEntity::ok)
-                    .orElseThrow(() -> new ResourceNotFoundException("No build found with ID: " + id));
+                    .orElseThrow(() -> new ResourceNotFoundException("No build found with ID: "
+                            + id));
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
 
@@ -112,9 +128,9 @@ public class BuildController {
             Long buildId = Long.valueOf(id);
             return buildService.getScreenshot(buildId, index)
                     .map(ResponseEntity::ok)
-                    .orElseGet(() -> ResponseEntity.notFound().build());
+                    .orElseGet(() -> new ResponseEntity<>(HttpStatus.GONE));
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
 
@@ -130,28 +146,12 @@ public class BuildController {
             @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
         try {
             Long buildId = Long.valueOf(id);
-            Set<Author> authors = authorNames.stream()
-                    .map(authorService::findOrCreateAuthor)
-                    .collect(Collectors.toSet());
-            Set<Theme> themes = themeNames.stream()
-                    .map(themeService::findOrCreateTheme)
-                    .collect(Collectors.toSet());
-            Set<Color> colors = colorNames.stream()
-                    .map(colorService::findOrCreateColor)
-                    .collect(Collectors.toSet());
-            Build updatedBuild = Build.builder()
-                    .name(name)
-                    .authors(authors)
-                    .themes(themes)
-                    .description(description)
-                    .colors(colors)
-                    .screenshots(screenshots)
-                    .schemFile(schemFile.getBytes())
-                    .build();
+            Build updatedBuild = createBuildFromParams(name, authorNames, themeNames, description,
+                    colorNames, screenshots, schemFile);
             Build build = buildService.updateBuild(buildId, updatedBuild);
             return ResponseEntity.ok(build);
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         } catch (IllegalArgumentException e) {
             throw new ResourceNotFoundException(e.getMessage());
         }
@@ -164,7 +164,7 @@ public class BuildController {
             buildService.deleteBuild(buildId);
             return ResponseEntity.noContent().build();
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         } catch (IllegalArgumentException e) {
             throw new ResourceNotFoundException(e.getMessage());
         }
@@ -175,7 +175,8 @@ public class BuildController {
         try {
             Long buildId = Long.valueOf(id);
             Build build = buildService.findBuildById(buildId)
-                    .orElseThrow(() -> new ResourceNotFoundException("No build found with ID: " + id));
+                    .orElseThrow(() -> new ResourceNotFoundException("No build found with ID: "
+                            + id));
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
@@ -185,7 +186,7 @@ public class BuildController {
 
             return new ResponseEntity<>(build.getSchemFile(), headers, HttpStatus.OK);
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException("Invalid ID format: " + id);
+            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
 }

@@ -1,12 +1,11 @@
 package sovok.mcbuildlibrary.service;
 
-import org.springframework.stereotype.Service;
-import sovok.mcbuildlibrary.repository.AuthorRepository;
-import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
-import sovok.mcbuildlibrary.model.Author;
-
 import java.util.List;
 import java.util.Optional;
+import org.springframework.stereotype.Service;
+import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.model.Author;
+import sovok.mcbuildlibrary.repository.AuthorRepository;
 
 @Service
 public class AuthorService {
@@ -28,7 +27,8 @@ public class AuthorService {
 
     public Author createAuthor(String name) {
         if (authorRepository.findByName(name).isPresent()) {
-            throw new IllegalArgumentException("Author with name '" + name + "' already exists");
+            throw new IllegalArgumentException(
+                    "Author with name '" + name + "' already exists");
         }
         Author author = Author.builder().name(name).build();
         return authorRepository.save(author);
@@ -49,13 +49,16 @@ public class AuthorService {
     public Author updateAuthor(Long id, String newName) {
         return authorRepository.findById(id)
                 .map(author -> {
-                    if (authorRepository.findByName(newName).isPresent() && !author.getName().equals(newName)) {
-                        throw new IllegalArgumentException("Another author with name '" + newName + "' already exists");
+                    if (authorRepository.findByName(newName).isPresent()
+                            && !author.getName().equals(newName)) {
+                        throw new IllegalArgumentException(
+                                "Another author with name '" + newName + "' already exists");
                     }
                     author.setName(newName);
                     return authorRepository.save(author);
                 })
-                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Author with ID " + id + " not found"));
     }
 
     public void deleteAuthor(Long id) {
