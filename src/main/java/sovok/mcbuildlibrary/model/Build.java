@@ -61,7 +61,7 @@ public class Build {
     private Set<Color> colors = new HashSet<>();
 
     @ElementCollection
-    @CollectionTable(name = "build_screenshots", joinColumns = @JoinColumn(name = "build_id"))
+    @CollectionTable(name = "screenshots", joinColumns = @JoinColumn(name = "build_id"))
     @Column(name = "screenshot")
     @Cascade(CascadeType.ALL)
     private List<String> screenshots;
