@@ -3,16 +3,21 @@ package sovok.mcbuildlibrary.service;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import sovok.mcbuildlibrary.exception.EntityInUseException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.model.Color;
+import sovok.mcbuildlibrary.repository.BuildRepository;
 import sovok.mcbuildlibrary.repository.ColorRepository;
 
 @Service
 public class ColorService {
     private final ColorRepository colorRepository;
+    private final BuildRepository buildRepository; // Add BuildRepository
 
-    public ColorService(ColorRepository colorRepository) {
+    public ColorService(ColorRepository colorRepository, BuildRepository buildRepository) {
         this.colorRepository = colorRepository;
+        this.buildRepository = buildRepository;
     }
 
     public Color findOrCreateColor(String name) {
@@ -60,9 +65,16 @@ public class ColorService {
     }
 
     public void deleteColor(Long id) {
-        if (!colorRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Color with ID " + id + " not found");
+        Color color = colorRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + id
+                        + " not found"));
+
+        List<Build> buildsWithColor = buildRepository.findBuildsByColorId(id);
+        if (!buildsWithColor.isEmpty()) {
+            throw new EntityInUseException("Cannot delete color because it is associated "
+                    + "with builds");
         }
-        colorRepository.deleteById(id);
+
+        colorRepository.delete(color);
     }
 }
