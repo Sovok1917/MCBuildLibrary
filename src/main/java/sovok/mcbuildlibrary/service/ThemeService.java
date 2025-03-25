@@ -77,4 +77,12 @@ public class ThemeService {
 
         themeRepository.delete(theme);
     }
+
+    public List<Theme> findThemes(String name) {
+        if (name != null) {
+            return themeRepository.findByName(name).map(List::of).orElse(List.of());
+        } else {
+            return themeRepository.findAll();
+        }
+    }
 }

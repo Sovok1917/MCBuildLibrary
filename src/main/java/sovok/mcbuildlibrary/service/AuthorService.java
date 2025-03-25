@@ -84,4 +84,12 @@ public class AuthorService {
         // Finally, delete the author
         authorRepository.deleteById(id);
     }
+
+    public List<Author> findAuthors(String name) {
+        if (name != null) {
+            return authorRepository.findByName(name).map(List::of).orElse(List.of());
+        } else {
+            return authorRepository.findAll();
+        }
+    }
 }

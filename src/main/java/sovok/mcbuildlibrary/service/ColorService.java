@@ -77,4 +77,12 @@ public class ColorService {
 
         colorRepository.delete(color);
     }
+
+    public List<Color> findColors(String name) {
+        if (name != null) {
+            return colorRepository.findByName(name).map(List::of).orElse(List.of());
+        } else {
+            return colorRepository.findAll();
+        }
+    }
 }

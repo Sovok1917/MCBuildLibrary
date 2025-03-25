@@ -74,4 +74,14 @@ public class AuthorController {
             throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
+
+    @GetMapping("/query")
+    public ResponseEntity<List<Author>> getAuthorsByQuery(@RequestParam(required = false)
+                                                              String name) {
+        List<Author> authors = authorService.findAuthors(name);
+        if (authors.isEmpty()) {
+            throw new ResourceNotFoundException("No authors found matching the query");
+        }
+        return ResponseEntity.ok(authors);
+    }
 }

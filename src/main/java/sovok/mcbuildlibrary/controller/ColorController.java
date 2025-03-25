@@ -74,4 +74,14 @@ public class ColorController {
             throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
+
+    @GetMapping("/query")
+    public ResponseEntity<List<Color>> getColorsByQuery(@RequestParam(required = false)
+                                                            String name) {
+        List<Color> colors = colorService.findColors(name);
+        if (colors.isEmpty()) {
+            throw new ResourceNotFoundException("No colors found matching the query");
+        }
+        return ResponseEntity.ok(colors);
+    }
 }

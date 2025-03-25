@@ -74,4 +74,14 @@ public class ThemeController {
             throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
         }
     }
+
+    @GetMapping("/query")
+    public ResponseEntity<List<Theme>> getThemesByQuery(@RequestParam(required = false)
+                                                            String name) {
+        List<Theme> themes = themeService.findThemes(name);
+        if (themes.isEmpty()) {
+            throw new ResourceNotFoundException("No themes found matching the query");
+        }
+        return ResponseEntity.ok(themes);
+    }
 }
