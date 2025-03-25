@@ -64,15 +64,16 @@ public class AuthorController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAuthor(@PathVariable String id) {
+    @DeleteMapping("/{identifier}")
+    public ResponseEntity<Void> deleteAuthor(@PathVariable String identifier) {
         try {
-            Long authorId = Long.valueOf(id);
+            Long authorId = Long.valueOf(identifier);
             authorService.deleteAuthor(authorId);
-            return ResponseEntity.noContent().build();
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
+            // If it's not a valid Long, treat it as a name
+            authorService.deleteAuthorByName(identifier);
         }
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/query")

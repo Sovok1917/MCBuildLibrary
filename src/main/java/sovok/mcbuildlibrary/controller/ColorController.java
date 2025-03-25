@@ -64,15 +64,16 @@ public class ColorController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteColor(@PathVariable String id) {
+    @DeleteMapping("/{identifier}")
+    public ResponseEntity<Void> deleteColor(@PathVariable String identifier) {
         try {
-            Long colorId = Long.valueOf(id);
+            Long colorId = Long.valueOf(identifier);
             colorService.deleteColor(colorId);
-            return ResponseEntity.noContent().build();
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
+            // If it's not a valid Long, treat it as a name
+            colorService.deleteColorByName(identifier);
         }
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/query")

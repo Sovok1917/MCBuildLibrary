@@ -64,18 +64,30 @@ public class ColorService {
                         "Color with ID " + id + " not found"));
     }
 
+    // Add this private method to encapsulate the deletion logic
+    private void deleteColorInternal(Color color) {
+        List<Build> buildsWithColor = buildRepository.findBuildsByColorId(color.getId());
+        if (!buildsWithColor.isEmpty()) {
+            throw new EntityInUseException("Cannot delete color because it is associated with "
+                    + "builds");
+        }
+        colorRepository.delete(color);
+    }
+
+    // Update the existing deleteColor method
     public void deleteColor(Long id) {
         Color color = colorRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + id
-                        + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + id + " not "
+                        + "found"));
+        deleteColorInternal(color);
+    }
 
-        List<Build> buildsWithColor = buildRepository.findBuildsByColorId(id);
-        if (!buildsWithColor.isEmpty()) {
-            throw new EntityInUseException("Cannot delete color because it is associated "
-                    + "with builds");
-        }
-
-        colorRepository.delete(color);
+    // Add the new deleteColorByName method
+    public void deleteColorByName(String name) {
+        Color color = colorRepository.findByName(name)
+                .orElseThrow(() -> new ResourceNotFoundException("Color with name '" + name
+                        + "' not found"));
+        deleteColorInternal(color);
     }
 
     public List<Color> findColors(String name) {

@@ -62,11 +62,8 @@ public class AuthorService {
                         "Author with ID " + id + " not found"));
     }
 
-    public void deleteAuthor(Long id) {
-        Author author = authorRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id
-                        + " not found"));
-
+    // Add this private method to encapsulate the deletion logic
+    private void deleteAuthorInternal(Author author) {
         // Find all builds associated with this author
         List<Build> builds = buildRepository.filterBuilds(author.getName(), null, null, null, true);
 
@@ -82,7 +79,23 @@ public class AuthorService {
         }
 
         // Finally, delete the author
-        authorRepository.deleteById(id);
+        authorRepository.delete(author);
+    }
+
+    // Update the existing deleteAuthor method
+    public void deleteAuthor(Long id) {
+        Author author = authorRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id
+                        + " not found"));
+        deleteAuthorInternal(author);
+    }
+
+    // Add the new deleteAuthorByName method
+    public void deleteAuthorByName(String name) {
+        Author author = authorRepository.findByName(name)
+                .orElseThrow(() -> new ResourceNotFoundException("Author with name '" + name
+                        + "' not found"));
+        deleteAuthorInternal(author);
     }
 
     public List<Author> findAuthors(String name) {

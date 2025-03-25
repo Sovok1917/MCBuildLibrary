@@ -64,18 +64,30 @@ public class ThemeService {
                         "Theme with ID " + id + " not found"));
     }
 
+    // Add this private method to encapsulate the deletion logic
+    private void deleteThemeInternal(Theme theme) {
+        List<Build> buildsWithTheme = buildRepository.findBuildsByThemeId(theme.getId());
+        if (!buildsWithTheme.isEmpty()) {
+            throw new EntityInUseException("Cannot delete theme because it is associated with"
+                    + " builds");
+        }
+        themeRepository.delete(theme);
+    }
+
+    // Update the existing deleteTheme method
     public void deleteTheme(Long id) {
         Theme theme = themeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Theme with ID " + id
                         + " not found"));
+        deleteThemeInternal(theme);
+    }
 
-        List<Build> buildsWithTheme = buildRepository.findBuildsByThemeId(id);
-        if (!buildsWithTheme.isEmpty()) {
-            throw new EntityInUseException("Cannot delete theme because it is associated with "
-                    +   "builds");
-        }
-
-        themeRepository.delete(theme);
+    // Add the new deleteThemeByName method
+    public void deleteThemeByName(String name) {
+        Theme theme = themeRepository.findByName(name)
+                .orElseThrow(() -> new ResourceNotFoundException("Theme with name '" + name
+                        + "' not found"));
+        deleteThemeInternal(theme);
     }
 
     public List<Theme> findThemes(String name) {

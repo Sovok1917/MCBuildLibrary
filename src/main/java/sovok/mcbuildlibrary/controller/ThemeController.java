@@ -64,15 +64,16 @@ public class ThemeController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTheme(@PathVariable String id) {
+    @DeleteMapping("/{identifier}")
+    public ResponseEntity<Void> deleteTheme(@PathVariable String identifier) {
         try {
-            Long themeId = Long.valueOf(id);
+            Long themeId = Long.valueOf(identifier);
             themeService.deleteTheme(themeId);
-            return ResponseEntity.noContent().build();
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
+            // If it's not a valid Long, treat it as a name
+            themeService.deleteThemeByName(identifier);
         }
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/query")
