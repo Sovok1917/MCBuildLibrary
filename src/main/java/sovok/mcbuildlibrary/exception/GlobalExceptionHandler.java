@@ -33,4 +33,11 @@ public class GlobalExceptionHandler {
         pd.setDetail(ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
     }
+
+    @ExceptionHandler(EntityInUseException.class)
+    public ResponseEntity<ProblemDetail> handleEntityInUseException(EntityInUseException ex) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        pd.setDetail(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(pd);
+    }
 }

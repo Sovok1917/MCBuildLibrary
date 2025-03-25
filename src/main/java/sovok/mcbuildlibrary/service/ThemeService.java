@@ -3,16 +3,21 @@ package sovok.mcbuildlibrary.service;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import sovok.mcbuildlibrary.exception.EntityInUseException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.model.Theme;
+import sovok.mcbuildlibrary.repository.BuildRepository;
 import sovok.mcbuildlibrary.repository.ThemeRepository;
 
 @Service
 public class ThemeService {
     private final ThemeRepository themeRepository;
+    private final BuildRepository buildRepository;
 
-    public ThemeService(ThemeRepository themeRepository) {
+    public ThemeService(ThemeRepository themeRepository, BuildRepository buildRepository) {
         this.themeRepository = themeRepository;
+        this.buildRepository = buildRepository;
     }
 
     public Theme findOrCreateTheme(String name) {
@@ -60,9 +65,16 @@ public class ThemeService {
     }
 
     public void deleteTheme(Long id) {
-        if (!themeRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Theme with ID " + id + " not found");
+        Theme theme = themeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Theme with ID " + id
+                        + " not found"));
+
+        List<Build> buildsWithTheme = buildRepository.findBuildsByThemeId(id);
+        if (!buildsWithTheme.isEmpty()) {
+            throw new EntityInUseException("Cannot delete theme because it is associated with "
+                    +   "builds");
         }
-        themeRepository.deleteById(id);
+
+        themeRepository.delete(theme);
     }
 }
