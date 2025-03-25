@@ -5,30 +5,31 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Author;
+import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.repository.AuthorRepository;
+import sovok.mcbuildlibrary.repository.BuildRepository;
 
 @Service
 public class AuthorService {
     private final AuthorRepository authorRepository;
+    private final BuildRepository buildRepository; // Add BuildRepository
 
-    public AuthorService(AuthorRepository authorRepository) {
+    public AuthorService(AuthorRepository authorRepository, BuildRepository buildRepository) {
         this.authorRepository = authorRepository;
+        this.buildRepository = buildRepository;
     }
 
     public Author findOrCreateAuthor(String name) {
         Optional<Author> authorOpt = authorRepository.findByName(name);
-        if (authorOpt.isPresent()) {
-            return authorOpt.get();
-        } else {
+        return authorOpt.orElseGet(() -> {
             Author newAuthor = Author.builder().name(name).build();
             return authorRepository.save(newAuthor);
-        }
+        });
     }
 
     public Author createAuthor(String name) {
         if (authorRepository.findByName(name).isPresent()) {
-            throw new IllegalArgumentException(
-                    "Author with name '" + name + "' already exists");
+            throw new IllegalArgumentException("Author with name '" + name + "' already exists");
         }
         Author author = Author.builder().name(name).build();
         return authorRepository.save(author);
@@ -62,9 +63,25 @@ public class AuthorService {
     }
 
     public void deleteAuthor(Long id) {
-        if (!authorRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Author with ID " + id + " not found");
+        Author author = authorRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id
+                        + " not found"));
+
+        // Find all builds associated with this author
+        List<Build> builds = buildRepository.filterBuilds(author.getName(), null, null, null, true);
+
+        // Delete builds where this author is the only author
+        for (Build build : builds) {
+            if (build.getAuthors().size() == 1 && build.getAuthors().contains(author)) {
+                buildRepository.delete(build);
+            } else {
+                // Remove the author from builds with multiple authors
+                build.getAuthors().remove(author);
+                buildRepository.save(build);
+            }
         }
-        authorRepository.deleteById(id); // Cascading deletes builds and screenshots
+
+        // Finally, delete the author
+        authorRepository.deleteById(id);
     }
 }

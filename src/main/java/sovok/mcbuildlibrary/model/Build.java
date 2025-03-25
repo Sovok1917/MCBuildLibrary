@@ -19,7 +19,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 
 @Entity
@@ -40,6 +39,7 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "author_id")
     )
+    @org.hibernate.annotations.Cascade(CascadeType.PERSIST) // Persist authors when build is saved
     private Set<Author> authors = new HashSet<>();
 
     @ManyToMany
@@ -48,6 +48,7 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "theme_id")
     )
+    @org.hibernate.annotations.Cascade(CascadeType.PERSIST) // Persist themes when build is saved
     private Set<Theme> themes = new HashSet<>();
 
     private String description;
@@ -58,12 +59,13 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "color_id")
     )
+    @org.hibernate.annotations.Cascade(CascadeType.PERSIST) // Persist colors when build is saved
     private Set<Color> colors = new HashSet<>();
 
     @ElementCollection
     @CollectionTable(name = "screenshots", joinColumns = @JoinColumn(name = "build_id"))
     @Column(name = "screenshot")
-    @Cascade(CascadeType.ALL)
+    @org.hibernate.annotations.Cascade(CascadeType.ALL) // Cascade all operations to screenshots
     private List<String> screenshots;
 
     @Lob
