@@ -13,7 +13,7 @@ import sovok.mcbuildlibrary.repository.ColorRepository;
 @Service
 public class ColorService {
     private final ColorRepository colorRepository;
-    private final BuildRepository buildRepository; // Add BuildRepository
+    private final BuildRepository buildRepository;
 
     public ColorService(ColorRepository colorRepository, BuildRepository buildRepository) {
         this.colorRepository = colorRepository;
@@ -29,9 +29,9 @@ public class ColorService {
     }
 
     public Color createColor(String name) {
-        if (colorRepository.findByName(name).isPresent()) {
-            throw new IllegalArgumentException(
-                    "Color with name '" + name + "' already exists");
+        Optional<Color> existingColor = colorRepository.findByName(name);
+        if (existingColor.isPresent()) {
+            throw new EntityInUseException("A color with the name '" + name + "' already exists. Please choose a unique name.");
         }
         Color color = Color.builder().name(name).build();
         return colorRepository.save(color);
@@ -52,41 +52,33 @@ public class ColorService {
     public Color updateColor(Long id, String newName) {
         return colorRepository.findById(id)
                 .map(color -> {
-                    if (colorRepository.findByName(newName).isPresent()
-                            && !color.getName().equals(newName)) {
-                        throw new IllegalArgumentException(
-                                "Another color with name '" + newName + "' already exists");
+                    Optional<Color> colorWithSameName = colorRepository.findByName(newName);
+                    if (colorWithSameName.isPresent() && !colorWithSameName.get().getId().equals(id)) {
+                        throw new EntityInUseException("A color with the name '" + newName + "' already exists. Please choose a unique name.");
                     }
                     color.setName(newName);
                     return colorRepository.save(color);
                 })
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Color with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + id + " not found"));
     }
 
-    // Add this private method to encapsulate the deletion logic
     private void deleteColorInternal(Color color) {
         List<Build> buildsWithColor = buildRepository.findBuildsByColorId(color.getId());
         if (!buildsWithColor.isEmpty()) {
-            throw new EntityInUseException("Cannot delete color because it is associated with "
-                    + "builds");
+            throw new EntityInUseException("Cannot delete color because it is associated with builds");
         }
         colorRepository.delete(color);
     }
 
-    // Update the existing deleteColor method
     public void deleteColor(Long id) {
         Color color = colorRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + id + " not "
-                        + "found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + id + " not found"));
         deleteColorInternal(color);
     }
 
-    // Add the new deleteColorByName method
     public void deleteColorByName(String name) {
         Color color = colorRepository.findByName(name)
-                .orElseThrow(() -> new ResourceNotFoundException("Color with name '" + name
-                        + "' not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Color with name '" + name + "' not found"));
         deleteColorInternal(color);
     }
 

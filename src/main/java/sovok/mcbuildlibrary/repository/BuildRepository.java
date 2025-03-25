@@ -1,6 +1,7 @@
 package sovok.mcbuildlibrary.repository;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,7 +18,8 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
     List<Build> filterBuilds(String author, String name, String theme, List<String> colors,
                              boolean colorsEmpty);
 
-    // New methods for theme and color checks
+    Optional<Build> findByName(String name); // Added this method
+
     @Query("SELECT b FROM Build b JOIN b.themes t WHERE t.id = :themeId")
     List<Build> findBuildsByThemeId(@Param("themeId") Long themeId);
 

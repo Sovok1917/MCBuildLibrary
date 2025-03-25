@@ -12,6 +12,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
+import jakarta.validation.constraints.NotBlank;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,6 +32,8 @@ public class Build {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Name is mandatory")
+    @Column(unique = true)
     private String name;
 
     @ManyToMany
@@ -39,7 +42,7 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "author_id")
     )
-    @org.hibernate.annotations.Cascade(CascadeType.PERSIST) // Persist authors when build is saved
+    @org.hibernate.annotations.Cascade(CascadeType.PERSIST)
     private Set<Author> authors = new HashSet<>();
 
     @ManyToMany
@@ -48,7 +51,7 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "theme_id")
     )
-    @org.hibernate.annotations.Cascade(CascadeType.PERSIST) // Persist themes when build is saved
+    @org.hibernate.annotations.Cascade(CascadeType.PERSIST)
     private Set<Theme> themes = new HashSet<>();
 
     private String description;
@@ -59,13 +62,13 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "color_id")
     )
-    @org.hibernate.annotations.Cascade(CascadeType.PERSIST) // Persist colors when build is saved
+    @org.hibernate.annotations.Cascade(CascadeType.PERSIST)
     private Set<Color> colors = new HashSet<>();
 
     @ElementCollection
     @CollectionTable(name = "screenshots", joinColumns = @JoinColumn(name = "build_id"))
     @Column(name = "screenshot")
-    @org.hibernate.annotations.Cascade(CascadeType.ALL) // Cascade all operations to screenshots
+    @org.hibernate.annotations.Cascade(CascadeType.ALL)
     private List<String> screenshots;
 
     @Lob

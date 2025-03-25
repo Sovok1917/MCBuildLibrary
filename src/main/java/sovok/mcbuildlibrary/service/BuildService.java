@@ -2,8 +2,10 @@ package sovok.mcbuildlibrary.service;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.exception.EntityInUseException; // We'll reuse this for duplicate names
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.repository.BuildRepository;
 
@@ -17,11 +19,21 @@ public class BuildService {
     }
 
     public Build createBuild(Build build) {
+        // Check if a build with the same name already exists
+        Optional<Build> existingBuild = buildRepository.findByName(build.getName());
+        if (existingBuild.isPresent()) {
+            throw new EntityInUseException("A build with the name '" + build.getName() + "' already exists. Please choose a unique name.");
+        }
         return buildRepository.save(build);
     }
 
     public Optional<Build> findBuildById(Long id) {
         return buildRepository.findById(id);
+    }
+
+    // Add this method to check for existing builds by name
+    public Optional<Build> findByName(String name) {
+        return buildRepository.findByName(name);
     }
 
     public List<Build> findAll() {
@@ -46,6 +58,11 @@ public class BuildService {
     public Build updateBuild(Long id, Build updatedBuild) {
         return buildRepository.findById(id)
                 .map(existingBuild -> {
+                    // Check if the new name is already taken by another build
+                    Optional<Build> buildWithSameName = buildRepository.findByName(updatedBuild.getName());
+                    if (buildWithSameName.isPresent() && !buildWithSameName.get().getId().equals(id)) {
+                        throw new EntityInUseException("A build with the name '" + updatedBuild.getName() + "' already exists. Please choose a unique name.");
+                    }
                     existingBuild.setName(updatedBuild.getName());
                     existingBuild.setAuthors(updatedBuild.getAuthors());
                     existingBuild.setThemes(updatedBuild.getThemes());
@@ -55,8 +72,7 @@ public class BuildService {
                     existingBuild.setSchemFile(updatedBuild.getSchemFile());
                     return buildRepository.save(existingBuild);
                 })
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Build with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Build with ID " + id + " not found"));
     }
 
     public void deleteBuild(Long id) {

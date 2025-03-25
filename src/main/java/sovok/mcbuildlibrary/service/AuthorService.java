@@ -3,6 +3,7 @@ package sovok.mcbuildlibrary.service;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import sovok.mcbuildlibrary.exception.EntityInUseException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.model.Build;
@@ -12,7 +13,7 @@ import sovok.mcbuildlibrary.repository.BuildRepository;
 @Service
 public class AuthorService {
     private final AuthorRepository authorRepository;
-    private final BuildRepository buildRepository; // Add BuildRepository
+    private final BuildRepository buildRepository;
 
     public AuthorService(AuthorRepository authorRepository, BuildRepository buildRepository) {
         this.authorRepository = authorRepository;
@@ -28,8 +29,9 @@ public class AuthorService {
     }
 
     public Author createAuthor(String name) {
-        if (authorRepository.findByName(name).isPresent()) {
-            throw new IllegalArgumentException("Author with name '" + name + "' already exists");
+        Optional<Author> existingAuthor = authorRepository.findByName(name);
+        if (existingAuthor.isPresent()) {
+            throw new EntityInUseException("An author with the name '" + name + "' already exists. Please choose a unique name.");
         }
         Author author = Author.builder().name(name).build();
         return authorRepository.save(author);
@@ -50,51 +52,38 @@ public class AuthorService {
     public Author updateAuthor(Long id, String newName) {
         return authorRepository.findById(id)
                 .map(author -> {
-                    if (authorRepository.findByName(newName).isPresent()
-                            && !author.getName().equals(newName)) {
-                        throw new IllegalArgumentException(
-                                "Another author with name '" + newName + "' already exists");
+                    Optional<Author> authorWithSameName = authorRepository.findByName(newName);
+                    if (authorWithSameName.isPresent() && !authorWithSameName.get().getId().equals(id)) {
+                        throw new EntityInUseException("An author with the name '" + newName + "' already exists. Please choose a unique name.");
                     }
                     author.setName(newName);
                     return authorRepository.save(author);
                 })
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Author with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id + " not found"));
     }
 
-    // Add this private method to encapsulate the deletion logic
     private void deleteAuthorInternal(Author author) {
-        // Find all builds associated with this author
         List<Build> builds = buildRepository.filterBuilds(author.getName(), null, null, null, true);
-
-        // Delete builds where this author is the only author
         for (Build build : builds) {
             if (build.getAuthors().size() == 1 && build.getAuthors().contains(author)) {
                 buildRepository.delete(build);
             } else {
-                // Remove the author from builds with multiple authors
                 build.getAuthors().remove(author);
                 buildRepository.save(build);
             }
         }
-
-        // Finally, delete the author
         authorRepository.delete(author);
     }
 
-    // Update the existing deleteAuthor method
     public void deleteAuthor(Long id) {
         Author author = authorRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id
-                        + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id + " not found"));
         deleteAuthorInternal(author);
     }
 
-    // Add the new deleteAuthorByName method
     public void deleteAuthorByName(String name) {
         Author author = authorRepository.findByName(name)
-                .orElseThrow(() -> new ResourceNotFoundException("Author with name '" + name
-                        + "' not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Author with name '" + name + "' not found"));
         deleteAuthorInternal(author);
     }
 
