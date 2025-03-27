@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import sovok.mcbuildlibrary.exception.ErrorMessages;
-import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Theme;
 import sovok.mcbuildlibrary.service.ThemeService;
@@ -39,29 +38,18 @@ public class ThemeController {
         return ResponseEntity.ok(themes);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Theme> getThemeById(@PathVariable String id) {
-        try {
-            Long themeId = Long.valueOf(id);
-            Theme theme = themeService.findThemeById(themeId)
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Theme with ID " + id + " not found"));
-            return ResponseEntity.ok(theme);
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        }
+    @GetMapping("/{identifier}")
+    public ResponseEntity<Theme> getThemeByIdentifier(@PathVariable String identifier) {
+        Theme theme = findThemeByIdentifier(identifier);
+        return ResponseEntity.ok(theme);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Theme> updateTheme(@PathVariable String id, @RequestParam("name")
-        String name) {
-        try {
-            Long themeId = Long.valueOf(id);
-            Theme updatedTheme = themeService.updateTheme(themeId, name);
-            return ResponseEntity.ok(updatedTheme);
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        }
+    @PutMapping("/{identifier}")
+    public ResponseEntity<Theme> updateTheme(@PathVariable String identifier, @RequestParam("name")
+        String newName) {
+        Theme theme = findThemeByIdentifier(identifier);
+        Theme updatedTheme = themeService.updateTheme(theme.getId(), newName);
+        return ResponseEntity.ok(updatedTheme);
     }
 
     @DeleteMapping("/{identifier}")
@@ -70,7 +58,6 @@ public class ThemeController {
             Long themeId = Long.valueOf(identifier);
             themeService.deleteTheme(themeId);
         } catch (NumberFormatException e) {
-            // If it's not a valid Long, treat it as a name
             themeService.deleteThemeByName(identifier);
         }
         return ResponseEntity.noContent().build();
@@ -84,5 +71,21 @@ public class ThemeController {
             throw new ResourceNotFoundException("No themes found matching the query");
         }
         return ResponseEntity.ok(themes);
+    }
+
+    private Theme findThemeByIdentifier(String identifier) {
+        try {
+            Long themeId = Long.valueOf(identifier);
+            return themeService.findThemeById(themeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Theme with ID " + identifier
+                            + " " + ErrorMessages.NOT_FOUND_MESSAGE));
+        } catch (NumberFormatException e) {
+            List<Theme> themes = themeService.findThemes(identifier);
+            if (themes.isEmpty()) {
+                throw new ResourceNotFoundException("Theme with name " + identifier + " "
+                        + ErrorMessages.NOT_FOUND_MESSAGE);
+            }
+            return themes.get(0);
+        }
     }
 }

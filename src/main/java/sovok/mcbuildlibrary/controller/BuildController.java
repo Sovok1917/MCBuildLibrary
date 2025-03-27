@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import sovok.mcbuildlibrary.exception.ErrorMessages;
-import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.model.Build;
@@ -86,17 +85,10 @@ public class BuildController {
         return new ResponseEntity<>(createdBuild, HttpStatus.CREATED);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Build> getBuildById(@PathVariable String id) {
-        try {
-            Long buildId = Long.valueOf(id);
-            return buildService.findBuildById(buildId)
-                    .map(ResponseEntity::ok)
-                    .orElseThrow(() -> new ResourceNotFoundException("No build found with ID: "
-                            + id));
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        }
+    @GetMapping("/{identifier}")
+    public ResponseEntity<Build> getBuildByIdentifier(@PathVariable String identifier) {
+        Build build = findBuildByIdentifier(identifier);
+        return ResponseEntity.ok(build);
     }
 
     @GetMapping
@@ -121,22 +113,18 @@ public class BuildController {
         return ResponseEntity.ok(filteredBuilds);
     }
 
-    @GetMapping("/{id}/screenshot")
-    public ResponseEntity<String> getScreenshot(@PathVariable String id,
+    @GetMapping("/{identifier}/screenshot")
+    public ResponseEntity<String> getScreenshot(@PathVariable String identifier,
                                                 @RequestParam int index) {
-        try {
-            Long buildId = Long.valueOf(id);
-            return buildService.getScreenshot(buildId, index)
-                    .map(ResponseEntity::ok)
-                    .orElseGet(() -> new ResponseEntity<>(HttpStatus.GONE));
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        }
+        Build build = findBuildByIdentifier(identifier);
+        return buildService.getScreenshot(build.getId(), index)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> new ResponseEntity<>(HttpStatus.GONE));
     }
 
-    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PutMapping(value = "/{identifier}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Build> updateBuild(
-            @PathVariable String id,
+            @PathVariable String identifier,
             @RequestParam("name") String name,
             @RequestParam("authors") List<String> authorNames,
             @RequestParam("themes") List<String> themeNames,
@@ -144,49 +132,42 @@ public class BuildController {
             @RequestParam("colors") List<String> colorNames,
             @RequestParam(value = "screenshots", required = false) List<String> screenshots,
             @RequestParam("schemFile") MultipartFile schemFile) throws IOException {
-        try {
-            Long buildId = Long.valueOf(id);
-            Build updatedBuild = createBuildFromParams(name, authorNames, themeNames, description,
-                    colorNames, screenshots, schemFile);
-            Build build = buildService.updateBuild(buildId, updatedBuild);
-            return ResponseEntity.ok(build);
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        } catch (IllegalArgumentException e) {
-            throw new ResourceNotFoundException(e.getMessage());
-        }
+        Build build = findBuildByIdentifier(identifier);
+        Build updatedBuild = createBuildFromParams(name, authorNames, themeNames, description,
+                colorNames, screenshots, schemFile);
+        Build result = buildService.updateBuild(build.getId(), updatedBuild);
+        return ResponseEntity.ok(result);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteBuild(@PathVariable String id) {
-        try {
-            Long buildId = Long.valueOf(id);
-            buildService.deleteBuild(buildId);
-            return ResponseEntity.noContent().build();
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        } catch (IllegalArgumentException e) {
-            throw new ResourceNotFoundException(e.getMessage());
-        }
+    @DeleteMapping("/{identifier}")
+    public ResponseEntity<Void> deleteBuild(@PathVariable String identifier) {
+        Build build = findBuildByIdentifier(identifier);
+        buildService.deleteBuild(build.getId());
+        return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{id}/schem")
-    public ResponseEntity<byte[]> getSchemFile(@PathVariable String id) {
+    @GetMapping("/{identifier}/schem")
+    public ResponseEntity<byte[]> getSchemFile(@PathVariable String identifier) {
+        Build build = findBuildByIdentifier(identifier);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        String filename = build.getName().replaceAll("[^a-zA-Z0-9-_ ]", "")
+                + ".schem";
+        headers.setContentDispositionFormData("attachment", filename);
+        headers.setContentLength(build.getSchemFile().length);
+        return new ResponseEntity<>(build.getSchemFile(), headers, HttpStatus.OK);
+    }
+
+    private Build findBuildByIdentifier(String identifier) {
         try {
-            Long buildId = Long.valueOf(id);
-            Build build = buildService.findBuildById(buildId)
-                    .orElseThrow(() -> new ResourceNotFoundException("No build found with ID: "
-                            + id));
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-            String filename = build.getName().replaceAll("[^a-zA-Z0-9-_ ]", "") + ".schem";
-            headers.setContentDispositionFormData("attachment", filename);
-            headers.setContentLength(build.getSchemFile().length);
-
-            return new ResponseEntity<>(build.getSchemFile(), headers, HttpStatus.OK);
+            Long buildId = Long.valueOf(identifier);
+            return buildService.findBuildById(buildId)
+                    .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.BUILD_WITH_ID
+                            + " " + identifier + " " + ErrorMessages.NOT_FOUND_MESSAGE));
         } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
+            return buildService.findByName(identifier)
+                    .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.BUILD_WITH_NAME
+                            + " " + identifier + " " + ErrorMessages.NOT_FOUND_MESSAGE));
         }
     }
 }

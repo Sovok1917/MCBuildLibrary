@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import sovok.mcbuildlibrary.exception.ErrorMessages;
-import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Color;
 import sovok.mcbuildlibrary.service.ColorService;
@@ -39,29 +38,18 @@ public class ColorController {
         return ResponseEntity.ok(colors);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Color> getColorById(@PathVariable String id) {
-        try {
-            Long colorId = Long.valueOf(id);
-            Color color = colorService.findColorById(colorId)
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Color with ID " + id + " not found"));
-            return ResponseEntity.ok(color);
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        }
+    @GetMapping("/{identifier}")
+    public ResponseEntity<Color> getColorByIdentifier(@PathVariable String identifier) {
+        Color color = findColorByIdentifier(identifier);
+        return ResponseEntity.ok(color);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Color> updateColor(@PathVariable String id, @RequestParam("name")
-        String name) {
-        try {
-            Long colorId = Long.valueOf(id);
-            Color updatedColor = colorService.updateColor(colorId, name);
-            return ResponseEntity.ok(updatedColor);
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        }
+    @PutMapping("/{identifier}")
+    public ResponseEntity<Color> updateColor(@PathVariable String identifier, @RequestParam("name")
+        String newName) {
+        Color color = findColorByIdentifier(identifier);
+        Color updatedColor = colorService.updateColor(color.getId(), newName);
+        return ResponseEntity.ok(updatedColor);
     }
 
     @DeleteMapping("/{identifier}")
@@ -70,7 +58,6 @@ public class ColorController {
             Long colorId = Long.valueOf(identifier);
             colorService.deleteColor(colorId);
         } catch (NumberFormatException e) {
-            // If it's not a valid Long, treat it as a name
             colorService.deleteColorByName(identifier);
         }
         return ResponseEntity.noContent().build();
@@ -84,5 +71,21 @@ public class ColorController {
             throw new ResourceNotFoundException("No colors found matching the query");
         }
         return ResponseEntity.ok(colors);
+    }
+
+    private Color findColorByIdentifier(String identifier) {
+        try {
+            Long colorId = Long.valueOf(identifier);
+            return colorService.findColorById(colorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + identifier
+                            + " " + ErrorMessages.NOT_FOUND_MESSAGE));
+        } catch (NumberFormatException e) {
+            List<Color> colors = colorService.findColors(identifier);
+            if (colors.isEmpty()) {
+                throw new ResourceNotFoundException("Color with name " + identifier + " "
+                        + ErrorMessages.NOT_FOUND_MESSAGE);
+            }
+            return colors.get(0);
+        }
     }
 }

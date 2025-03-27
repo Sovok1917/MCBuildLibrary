@@ -31,7 +31,8 @@ public class AuthorService {
     public Author createAuthor(String name) {
         Optional<Author> existingAuthor = authorRepository.findByName(name);
         if (existingAuthor.isPresent()) {
-            throw new EntityInUseException("An author with the name '" + name + "' already exists. Please choose a unique name.");
+            throw new EntityInUseException("An author with the name '" + name
+                    + "' already exists. Please choose a unique name.");
         }
         Author author = Author.builder().name(name).build();
         return authorRepository.save(author);
@@ -53,13 +54,16 @@ public class AuthorService {
         return authorRepository.findById(id)
                 .map(author -> {
                     Optional<Author> authorWithSameName = authorRepository.findByName(newName);
-                    if (authorWithSameName.isPresent() && !authorWithSameName.get().getId().equals(id)) {
-                        throw new EntityInUseException("An author with the name '" + newName + "' already exists. Please choose a unique name.");
+                    if (authorWithSameName.isPresent()
+                            && !authorWithSameName.get().getId().equals(id)) {
+                        throw new EntityInUseException("An author with the name '" + newName
+                                + "' already exists. Please choose a unique name.");
                     }
                     author.setName(newName);
                     return authorRepository.save(author);
                 })
-                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id
+                        + " not found"));
     }
 
     private void deleteAuthorInternal(Author author) {
@@ -77,13 +81,15 @@ public class AuthorService {
 
     public void deleteAuthor(Long id) {
         Author author = authorRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id
+                        + " not found"));
         deleteAuthorInternal(author);
     }
 
     public void deleteAuthorByName(String name) {
         Author author = authorRepository.findByName(name)
-                .orElseThrow(() -> new ResourceNotFoundException("Author with name '" + name + "' not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Author with name '" + name
+                        + "' not found"));
         deleteAuthorInternal(author);
     }
 

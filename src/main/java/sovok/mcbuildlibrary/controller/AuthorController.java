@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import sovok.mcbuildlibrary.exception.ErrorMessages;
-import sovok.mcbuildlibrary.exception.InvalidQueryParameterException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.service.AuthorService;
@@ -39,29 +38,18 @@ public class AuthorController {
         return ResponseEntity.ok(authors);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Author> getAuthorById(@PathVariable String id) {
-        try {
-            Long authorId = Long.valueOf(id);
-            Author author = authorService.findAuthorById(authorId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + id
-                            + " not found"));
-            return ResponseEntity.ok(author);
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        }
+    @GetMapping("/{identifier}")
+    public ResponseEntity<Author> getAuthorByIdentifier(@PathVariable String identifier) {
+        Author author = findAuthorByIdentifier(identifier);
+        return ResponseEntity.ok(author);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Author> updateAuthor(@PathVariable String id, @RequestParam("name")
-        String name) {
-        try {
-            Long authorId = Long.valueOf(id);
-            Author updatedAuthor = authorService.updateAuthor(authorId, name);
-            return ResponseEntity.ok(updatedAuthor);
-        } catch (NumberFormatException e) {
-            throw new InvalidQueryParameterException(ErrorMessages.INVALID_ID_FORMAT_MESSAGE + id);
-        }
+    @PutMapping("/{identifier}")
+    public ResponseEntity<Author> updateAuthor(@PathVariable String identifier,
+                                               @RequestParam("name") String newName) {
+        Author author = findAuthorByIdentifier(identifier);
+        Author updatedAuthor = authorService.updateAuthor(author.getId(), newName);
+        return ResponseEntity.ok(updatedAuthor);
     }
 
     @DeleteMapping("/{identifier}")
@@ -70,19 +58,34 @@ public class AuthorController {
             Long authorId = Long.valueOf(identifier);
             authorService.deleteAuthor(authorId);
         } catch (NumberFormatException e) {
-            // If it's not a valid Long, treat it as a name
             authorService.deleteAuthorByName(identifier);
         }
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/query")
-    public ResponseEntity<List<Author>> getAuthorsByQuery(@RequestParam(required = false)
-                                                              String name) {
+    public ResponseEntity<List<Author>> getAuthorsByQuery(@RequestParam(required = false) String
+                                                                      name) {
         List<Author> authors = authorService.findAuthors(name);
         if (authors.isEmpty()) {
             throw new ResourceNotFoundException("No authors found matching the query");
         }
         return ResponseEntity.ok(authors);
+    }
+
+    private Author findAuthorByIdentifier(String identifier) {
+        try {
+            Long authorId = Long.valueOf(identifier);
+            return authorService.findAuthorById(authorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + identifier
+                            + " " + ErrorMessages.NOT_FOUND_MESSAGE));
+        } catch (NumberFormatException e) {
+            List<Author> authors = authorService.findAuthors(identifier);
+            if (authors.isEmpty()) {
+                throw new ResourceNotFoundException("Author with name " + identifier + " "
+                        + ErrorMessages.NOT_FOUND_MESSAGE);
+            }
+            return authors.get(0); // Name is unique, so list has at most one element
+        }
     }
 }
