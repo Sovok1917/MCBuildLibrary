@@ -18,7 +18,6 @@ public class BuildService {
     }
 
     public Build createBuild(Build build) {
-        // Check if a build with the same name already exists
         Optional<Build> existingBuild = buildRepository.findByName(build.getName());
         if (existingBuild.isPresent()) {
             throw new EntityInUseException("A build with the name '" + build.getName()
@@ -31,9 +30,10 @@ public class BuildService {
         return buildRepository.findById(id);
     }
 
-    // Add this method to check for existing builds by name
     public Optional<Build> findByName(String name) {
-        return buildRepository.findByName(name);
+        String pattern = "%" + name.toLowerCase() + "%";
+        List<Build> builds = buildRepository.findByNameLike(pattern);
+        return builds.isEmpty() ? Optional.empty() : Optional.of(builds.get(0)); // Name is unique
     }
 
     public List<Build> findAll() {
@@ -41,8 +41,14 @@ public class BuildService {
     }
 
     public List<Build> filterBuilds(String author, String name, String theme, List<String> colors) {
-        boolean colorsEmpty = colors == null || colors.isEmpty();
-        return buildRepository.filterBuilds(author, name, theme, colors, colorsEmpty);
+        String authorPattern = author != null ? "%" + author.toLowerCase() + "%" : null;
+        String namePattern = name != null ? "%" + name.toLowerCase() + "%" : null;
+        String themePattern = theme != null ? "%" + theme.toLowerCase() + "%" : null;
+        List<String> colorsLower = colors != null
+                ? colors.stream().map(String::toLowerCase).toList() : null;
+        boolean colorsEmpty = colorsLower == null || colorsLower.isEmpty();
+        return buildRepository.filterBuilds(authorPattern, namePattern,
+                themePattern, colorsLower, colorsEmpty);
     }
 
     public Optional<String> getScreenshot(Long id, int index) {
@@ -58,7 +64,6 @@ public class BuildService {
     public Build updateBuild(Long id, Build updatedBuild) {
         return buildRepository.findById(id)
                 .map(existingBuild -> {
-                    // Check if the new name is already taken by another build
                     Optional<Build> buildWithSameName
                             = buildRepository.findByName(updatedBuild.getName());
                     if (buildWithSameName.isPresent()

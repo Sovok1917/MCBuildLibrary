@@ -50,6 +50,15 @@ public class AuthorService {
         return authors;
     }
 
+    public List<Author> findAuthors(String name) {
+        if (name != null) {
+            String pattern = "%" + name.toLowerCase() + "%";
+            return authorRepository.findByNameLike(pattern);
+        } else {
+            return authorRepository.findAll();
+        }
+    }
+
     public Author updateAuthor(Long id, String newName) {
         return authorRepository.findById(id)
                 .map(author -> {
@@ -67,7 +76,8 @@ public class AuthorService {
     }
 
     private void deleteAuthorInternal(Author author) {
-        List<Build> builds = buildRepository.filterBuilds(author.getName(), null, null, null, true);
+        List<Build> builds = buildRepository.filterBuilds(author.getName(),
+                null, null, null, true);
         for (Build build : builds) {
             if (build.getAuthors().size() == 1 && build.getAuthors().contains(author)) {
                 buildRepository.delete(build);
@@ -91,13 +101,5 @@ public class AuthorService {
                 .orElseThrow(() -> new ResourceNotFoundException("Author with name '" + name
                         + "' not found"));
         deleteAuthorInternal(author);
-    }
-
-    public List<Author> findAuthors(String name) {
-        if (name != null) {
-            return authorRepository.findByName(name).map(List::of).orElse(List.of());
-        } else {
-            return authorRepository.findAll();
-        }
     }
 }
