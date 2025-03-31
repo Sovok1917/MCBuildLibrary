@@ -72,7 +72,6 @@ public class Build {
     private List<String> screenshots;
 
     @Lob
-    @Column(name = "schem_file", columnDefinition = "MEDIUMBLOB")
     @JsonIgnore
     private byte[] schemFile;
 }
