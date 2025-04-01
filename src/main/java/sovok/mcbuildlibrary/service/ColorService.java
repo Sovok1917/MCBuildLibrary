@@ -3,6 +3,8 @@ package sovok.mcbuildlibrary.service;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import sovok.mcbuildlibrary.dto.ColorDto;
+import sovok.mcbuildlibrary.dto.RelatedBuildDto;
 import sovok.mcbuildlibrary.exception.EntityInUseException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Build;
@@ -19,6 +21,27 @@ public class ColorService {
         this.colorRepository = colorRepository;
         this.buildRepository = buildRepository;
     }
+
+    private ColorDto convertToDto(Color color) {
+        List<BuildRepository.BuildIdAndName> relatedBuildsInfo
+                = buildRepository.findBuildIdAndNameByColorId(color.getId());
+        List<RelatedBuildDto> relatedBuildDtos = relatedBuildsInfo.stream()
+                .map(info -> new RelatedBuildDto(info.getId(), info.getName()))
+                .toList();
+        return new ColorDto(color.getId(), color.getName(), relatedBuildDtos);
+    }
+
+    // --- Helper method to contain the duplicated find logic ---
+    private List<Color> findColorsInternal(String name) {
+        if (name != null && !name.trim().isEmpty()) {
+            String pattern = "%" + name.toLowerCase() + "%";
+            return colorRepository.findByNameLike(pattern);
+        } else {
+            // Return all if name is null or blank
+            return colorRepository.findAll();
+        }
+    }
+    // --- End Helper method ---
 
     public Color findOrCreateColor(String name) {
         Optional<Color> colorOpt = colorRepository.findByName(name);
@@ -37,26 +60,32 @@ public class ColorService {
         return colorRepository.save(color);
     }
 
-    public Optional<Color> findColorById(Long id) {
-        return colorRepository.findById(id);
+    public Optional<ColorDto> findColorDtoById(Long id) {
+        return colorRepository.findById(id).map(this::convertToDto);
     }
 
-    public List<Color> findAllColors() {
+    public List<ColorDto> findAllColorDtos() {
         List<Color> colors = colorRepository.findAll();
         if (colors.isEmpty()) {
             throw new ResourceNotFoundException("No colors are currently available");
         }
-        return colors;
+        return colors.stream().map(this::convertToDto).toList();
     }
 
-    public List<Color> findColors(String name) {
-        if (name != null) {
-            String pattern = "%" + name.toLowerCase() + "%";
-            return colorRepository.findByNameLike(pattern);
-        } else {
-            return colorRepository.findAll();
-        }
+    // --- Modified to use the helper method ---
+    public List<ColorDto> findColorDtos(String name) {
+        List<Color> colors = findColorsInternal(name); // Call helper
+        // Don't throw ResourceNotFoundException here, let controller handle empty list
+        return colors.stream().map(this::convertToDto).toList();
     }
+    // --- End Modification ---
+
+    // --- Modified to use the helper method ---
+    public List<Color> findColors(String name) {
+        return findColorsInternal(name); // Call helper
+    }
+    // --- End Modification ---
+
 
     public Color updateColor(Long id, String newName) {
         return colorRepository.findById(id)
@@ -77,8 +106,8 @@ public class ColorService {
     private void deleteColorInternal(Color color) {
         List<Build> buildsWithColor = buildRepository.findBuildsByColorId(color.getId());
         if (!buildsWithColor.isEmpty()) {
-            throw new EntityInUseException("Cannot delete color because it is associated with "
-                    + "builds");
+            throw new EntityInUseException("Cannot delete color '" + color.getName()
+                    + "' because it is associated with " + buildsWithColor.size() + " build(s).");
         }
         colorRepository.delete(color);
     }

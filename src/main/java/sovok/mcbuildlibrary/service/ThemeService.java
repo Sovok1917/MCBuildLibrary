@@ -3,6 +3,8 @@ package sovok.mcbuildlibrary.service;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import sovok.mcbuildlibrary.dto.RelatedBuildDto;
+import sovok.mcbuildlibrary.dto.ThemeDto;
 import sovok.mcbuildlibrary.exception.EntityInUseException;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Build;
@@ -19,6 +21,27 @@ public class ThemeService {
         this.themeRepository = themeRepository;
         this.buildRepository = buildRepository;
     }
+
+    private ThemeDto convertToDto(Theme theme) {
+        List<BuildRepository.BuildIdAndName> relatedBuildsInfo
+                = buildRepository.findBuildIdAndNameByThemeId(theme.getId());
+        List<RelatedBuildDto> relatedBuildDtos = relatedBuildsInfo.stream()
+                .map(info -> new RelatedBuildDto(info.getId(), info.getName()))
+                .toList();
+        return new ThemeDto(theme.getId(), theme.getName(), relatedBuildDtos);
+    }
+
+    // --- Helper method to contain the duplicated find logic ---
+    private List<Theme> findThemesInternal(String name) {
+        if (name != null && !name.trim().isEmpty()) {
+            String pattern = "%" + name.toLowerCase() + "%";
+            return themeRepository.findByNameLike(pattern);
+        } else {
+            // Return all if name is null or blank
+            return themeRepository.findAll();
+        }
+    }
+    // --- End Helper method ---
 
     public Theme findOrCreateTheme(String name) {
         Optional<Theme> themeOpt = themeRepository.findByName(name);
@@ -37,25 +60,26 @@ public class ThemeService {
         return themeRepository.save(theme);
     }
 
-    public Optional<Theme> findThemeById(Long id) {
-        return themeRepository.findById(id);
+    public Optional<ThemeDto> findThemeDtoById(Long id) {
+        return themeRepository.findById(id).map(this::convertToDto);
     }
 
-    public List<Theme> findAllThemes() {
+    public List<ThemeDto> findAllThemeDtos() {
         List<Theme> themes = themeRepository.findAll();
         if (themes.isEmpty()) {
             throw new ResourceNotFoundException("No themes are currently available");
         }
-        return themes;
+        return themes.stream().map(this::convertToDto).toList();
+    }
+
+    public List<ThemeDto> findThemeDtos(String name) {
+        List<Theme> themes = findThemesInternal(name); // Call helper
+        // Don't throw ResourceNotFoundException here, let controller handle empty list
+        return themes.stream().map(this::convertToDto).toList();
     }
 
     public List<Theme> findThemes(String name) {
-        if (name != null) {
-            String pattern = "%" + name.toLowerCase() + "%";
-            return themeRepository.findByNameLike(pattern);
-        } else {
-            return themeRepository.findAll();
-        }
+        return findThemesInternal(name); // Call helper
     }
 
     public Theme updateTheme(Long id, String newName) {
@@ -77,8 +101,8 @@ public class ThemeService {
     private void deleteThemeInternal(Theme theme) {
         List<Build> buildsWithTheme = buildRepository.findBuildsByThemeId(theme.getId());
         if (!buildsWithTheme.isEmpty()) {
-            throw new EntityInUseException("Cannot delete theme because it is associated "
-                    + "with builds");
+            throw new EntityInUseException("Cannot delete theme '" + theme.getName()
+                    + "' because it is associated with " + buildsWithTheme.size() + " build(s).");
         }
         themeRepository.delete(theme);
     }
