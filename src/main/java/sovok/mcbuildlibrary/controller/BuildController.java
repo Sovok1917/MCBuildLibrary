@@ -149,13 +149,16 @@ public class BuildController {
     @GetMapping("/{identifier}/schem")
     public ResponseEntity<byte[]> getSchemFile(@PathVariable String identifier) {
         Build build = findBuildByIdentifier(identifier);
+        byte[] schemFile = buildService.getSchemFile(build.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Schem file for build '"
+                        + identifier + "' not found"));
+
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        String filename = build.getName().replaceAll("[^a-zA-Z0-9-_ ]", "")
-                + ".schem";
+        String filename = build.getName().replaceAll("[^a-zA-Z0-9-_ ]", "") + ".schem";
         headers.setContentDispositionFormData("attachment", filename);
-        headers.setContentLength(build.getSchemFile().length);
-        return new ResponseEntity<>(build.getSchemFile(), headers, HttpStatus.OK);
+        headers.setContentLength(schemFile.length);
+        return new ResponseEntity<>(schemFile, headers, HttpStatus.OK);
     }
 
     private Build findBuildByIdentifier(String identifier) {
