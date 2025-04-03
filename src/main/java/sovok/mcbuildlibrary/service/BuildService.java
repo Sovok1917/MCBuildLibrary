@@ -2,7 +2,6 @@ package sovok.mcbuildlibrary.service;
 
 import java.util.List;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.exception.EntityInUseException;
@@ -15,17 +14,8 @@ public class BuildService {
 
     private final BuildRepository buildRepository;
 
-    // Self-injected instance of BuildService
-    private BuildService self;
-
     public BuildService(BuildRepository buildRepository) {
         this.buildRepository = buildRepository;
-    }
-
-    // Setter for self-injection
-    @Autowired
-    public void setSelf(BuildService self) {
-        this.self = self;
     }
 
     @Transactional
@@ -38,12 +28,12 @@ public class BuildService {
         return buildRepository.save(build);
     }
 
-    @Transactional(readOnly = true)
+    // Removed @Transactional since it's always called within a transactional context
     public Optional<Build> findBuildById(Long id) {
         return buildRepository.findById(id);
     }
 
-    @Transactional(readOnly = true)
+    // Removed @Transactional since it's called within a transactional context
     public Optional<Build> findByName(String name) {
         String pattern = "%" + name.toLowerCase() + "%";
         List<Build> builds = buildRepository.findByNameLike(pattern);
@@ -57,20 +47,13 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public List<Build> filterBuilds(String author, String name, String theme, List<String> colors) {
-        String authorPattern = author != null ? "%" + author.toLowerCase() + "%" : null;
-        String namePattern = name != null ? "%" + name.toLowerCase() + "%" : null;
-        String themePattern = theme != null ? "%" + theme.toLowerCase() + "%" : null;
-        List<String> colorsLower = colors != null
-                ? colors.stream().map(String::toLowerCase).toList() : null;
-        boolean colorsEmpty = colorsLower == null || colorsLower.isEmpty();
-        return buildRepository.filterBuilds(authorPattern, namePattern,
-                themePattern, colorsLower, colorsEmpty);
+        String colorsStr = (colors != null && !colors.isEmpty()) ? String.join(",", colors) : null;
+        return buildRepository.fuzzyFilterBuilds(author, name, theme, colorsStr);
     }
 
     @Transactional(readOnly = true)
     public Optional<String> getScreenshot(Long id, int index) {
-        // Use the self-injected instance to call findBuildById
-        return self.findBuildById(id)
+        return findBuildById(id)
                 .flatMap(build -> {
                     if (index < 0 || index >= build.getScreenshots().size()) {
                         return Optional.empty();
@@ -81,7 +64,7 @@ public class BuildService {
 
     @Transactional
     public Build updateBuild(Long id, Build updatedBuild) {
-        return buildRepository.findById(id)
+        return findBuildById(id)
                 .map(existingBuild -> {
                     Optional<Build> buildWithSameName
                             = buildRepository.findByName(updatedBuild.getName());
@@ -114,7 +97,7 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public Optional<byte[]> getSchemFile(Long id) {
-        return buildRepository.findById(id)
+        return findBuildById(id)
                 .map(build -> {
                     byte[] schemFile = build.getSchemFile();
                     return schemFile != null ? Optional.of(schemFile) : Optional.<byte[]>empty();

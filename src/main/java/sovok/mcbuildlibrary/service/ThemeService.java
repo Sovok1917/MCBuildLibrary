@@ -3,6 +3,7 @@ package sovok.mcbuildlibrary.service;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.dto.RelatedBuildDto;
 import sovok.mcbuildlibrary.dto.ThemeDto;
 import sovok.mcbuildlibrary.exception.EntityInUseException;
@@ -31,18 +32,6 @@ public class ThemeService {
         return new ThemeDto(theme.getId(), theme.getName(), relatedBuildDtos);
     }
 
-    // --- Helper method to contain the duplicated find logic ---
-    private List<Theme> findThemesInternal(String name) {
-        if (name != null && !name.trim().isEmpty()) {
-            String pattern = "%" + name.toLowerCase() + "%";
-            return themeRepository.findByNameLike(pattern);
-        } else {
-            // Return all if name is null or blank
-            return themeRepository.findAll();
-        }
-    }
-    // --- End Helper method ---
-
     public Theme findOrCreateTheme(String name) {
         Optional<Theme> themeOpt = themeRepository.findByName(name);
         return themeOpt.orElseGet(() -> {
@@ -64,6 +53,7 @@ public class ThemeService {
         return themeRepository.findById(id).map(this::convertToDto);
     }
 
+    @Transactional(readOnly = true)
     public List<ThemeDto> findAllThemeDtos() {
         List<Theme> themes = themeRepository.findAll();
         if (themes.isEmpty()) {
@@ -72,14 +62,19 @@ public class ThemeService {
         return themes.stream().map(this::convertToDto).toList();
     }
 
+    @Transactional(readOnly = true)
     public List<ThemeDto> findThemeDtos(String name) {
-        List<Theme> themes = findThemesInternal(name); // Call helper
-        // Don't throw ResourceNotFoundException here, let controller handle empty list
+        List<Theme> themes = themeRepository.fuzzyFindByName(name);
         return themes.stream().map(this::convertToDto).toList();
     }
 
     public List<Theme> findThemes(String name) {
-        return findThemesInternal(name); // Call helper
+        if (name != null && !name.trim().isEmpty()) {
+            String pattern = "%" + name.toLowerCase() + "%";
+            return themeRepository.findByNameLike(pattern);
+        } else {
+            return themeRepository.findAll();
+        }
     }
 
     public Theme updateTheme(Long id, String newName) {

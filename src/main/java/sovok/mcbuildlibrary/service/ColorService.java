@@ -3,6 +3,7 @@ package sovok.mcbuildlibrary.service;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.dto.ColorDto;
 import sovok.mcbuildlibrary.dto.RelatedBuildDto;
 import sovok.mcbuildlibrary.exception.EntityInUseException;
@@ -31,18 +32,6 @@ public class ColorService {
         return new ColorDto(color.getId(), color.getName(), relatedBuildDtos);
     }
 
-    // --- Helper method to contain the duplicated find logic ---
-    private List<Color> findColorsInternal(String name) {
-        if (name != null && !name.trim().isEmpty()) {
-            String pattern = "%" + name.toLowerCase() + "%";
-            return colorRepository.findByNameLike(pattern);
-        } else {
-            // Return all if name is null or blank
-            return colorRepository.findAll();
-        }
-    }
-    // --- End Helper method ---
-
     public Color findOrCreateColor(String name) {
         Optional<Color> colorOpt = colorRepository.findByName(name);
         return colorOpt.orElseGet(() -> {
@@ -64,6 +53,7 @@ public class ColorService {
         return colorRepository.findById(id).map(this::convertToDto);
     }
 
+    @Transactional(readOnly = true)
     public List<ColorDto> findAllColorDtos() {
         List<Color> colors = colorRepository.findAll();
         if (colors.isEmpty()) {
@@ -72,20 +62,20 @@ public class ColorService {
         return colors.stream().map(this::convertToDto).toList();
     }
 
-    // --- Modified to use the helper method ---
+    @Transactional(readOnly = true)
     public List<ColorDto> findColorDtos(String name) {
-        List<Color> colors = findColorsInternal(name); // Call helper
-        // Don't throw ResourceNotFoundException here, let controller handle empty list
+        List<Color> colors = colorRepository.fuzzyFindByName(name);
         return colors.stream().map(this::convertToDto).toList();
     }
-    // --- End Modification ---
 
-    // --- Modified to use the helper method ---
     public List<Color> findColors(String name) {
-        return findColorsInternal(name); // Call helper
+        if (name != null && !name.trim().isEmpty()) {
+            String pattern = "%" + name.toLowerCase() + "%";
+            return colorRepository.findByNameLike(pattern);
+        } else {
+            return colorRepository.findAll();
+        }
     }
-    // --- End Modification ---
-
 
     public Color updateColor(Long id, String newName) {
         return colorRepository.findById(id)

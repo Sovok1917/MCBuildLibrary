@@ -15,20 +15,24 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
         String getName();
     }
 
-    @Query("SELECT b FROM Build b "
-            + "WHERE (:authorPattern IS NULL OR EXISTS "
-            + "(SELECT a FROM b.authors a WHERE LOWER(a.name) LIKE :authorPattern)) "
-            + "AND (:namePattern IS NULL OR LOWER(b.name) LIKE :namePattern) "
-            + "AND (:themePattern IS NULL OR EXISTS (SELECT t FROM b.themes t WHERE LOWER(t.name)"
-            + " LIKE :themePattern)) "
-            + "AND (:colorsEmpty = true OR EXISTS "
-            + "(SELECT c FROM b.colors c WHERE LOWER(c.name) IN :colorsLower))")
-    List<Build> filterBuilds(
-            @Param("authorPattern") String authorPattern,
-            @Param("namePattern") String namePattern,
-            @Param("themePattern") String themePattern,
-            @Param("colorsLower") List<String> colorsLower,
-            @Param("colorsEmpty") boolean colorsEmpty);
+    @Query(value = "SELECT DISTINCT b.* FROM build b "
+            + "LEFT JOIN build_authors ba ON b.id = ba.build_id "
+            + "LEFT JOIN author a ON ba.author_id = a.id "
+            + "LEFT JOIN build_themes bt ON b.id = bt.build_id "
+            + "LEFT JOIN theme t ON bt.theme_id = t.id "
+            + "LEFT JOIN build_colors bc ON b.id = bc.build_id "
+            + "LEFT JOIN color c ON bc.color_id = c.id "
+            + "WHERE (:author IS NULL OR SIMILARITY(a.name, :author) > 0.3) "
+            + "AND (:name IS NULL OR SIMILARITY(b.name, :name) > 0.3) "
+            + "AND (:theme IS NULL OR SIMILARITY(t.name, :theme) > 0.3) "
+            + "AND (:colors IS NULL OR c.name ILIKE ANY (string_to_array(:colors, ','))) "
+            + "GROUP BY b.id",
+            nativeQuery = true)
+    List<Build> fuzzyFilterBuilds(
+            @Param("author") String author,
+            @Param("name") String name,
+            @Param("theme") String theme,
+            @Param("colors") String colors);
 
     Optional<Build> findByName(String name);
 

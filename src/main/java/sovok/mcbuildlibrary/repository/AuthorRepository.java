@@ -12,4 +12,8 @@ public interface AuthorRepository extends JpaRepository<Author, Long> {
 
     @Query("SELECT a FROM Author a WHERE LOWER(a.name) LIKE :pattern")
     List<Author> findByNameLike(@Param("pattern") String pattern);
+
+    @Query(value = "SELECT * FROM author a WHERE :name IS NULL OR SIMILARITY(a.name, :name) > 0.3",
+            nativeQuery = true)
+    List<Author> fuzzyFindByName(@Param("name") String name);
 }
