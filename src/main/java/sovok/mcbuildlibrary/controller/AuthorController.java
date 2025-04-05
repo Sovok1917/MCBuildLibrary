@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/controller/AuthorController.java
 package sovok.mcbuildlibrary.controller;
 
 import java.util.List;
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import sovok.mcbuildlibrary.dto.AuthorDto; // Import DTO
+import sovok.mcbuildlibrary.dto.AuthorDto;
 import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Author;
@@ -21,96 +22,95 @@ import sovok.mcbuildlibrary.service.AuthorService;
 @RequestMapping("/authors")
 public class AuthorController {
 
+    private static final String IDENTIFIER_PATH_VAR = "identifier";
+    private static final String NAME_REQ_PARAM = "name";
+
     private final AuthorService authorService;
 
     public AuthorController(AuthorService authorService) {
         this.authorService = authorService;
     }
 
-    // Create still returns the basic Author entity
     @PostMapping
-    public ResponseEntity<Author> createAuthor(@RequestParam("name") String name) {
+    public ResponseEntity<Author> createAuthor(@RequestParam(NAME_REQ_PARAM) String name) {
+        // Create returns the entity, which might not be cached directly, but service method caches it
         Author author = authorService.createAuthor(name);
         return new ResponseEntity<>(author, HttpStatus.CREATED);
     }
 
-    // --- Modified to return List<AuthorDto> ---
     @GetMapping
     public ResponseEntity<List<AuthorDto>> getAllAuthors() {
-        // Exception handling for empty list is in the service now,
-        // but you could move it here if preferred.
+        // Service method handles caching and "not found" for empty initial list
         List<AuthorDto> authors = authorService.findAllAuthorDtos();
         return ResponseEntity.ok(authors);
     }
-    // --- End Modification ---
 
-    // --- Modified to return AuthorDto ---
     @GetMapping("/{identifier}")
-    public ResponseEntity<AuthorDto> getAuthorByIdentifier(@PathVariable String identifier) {
+    public ResponseEntity<AuthorDto> getAuthorByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
+        // Helper method uses cached service methods
         AuthorDto authorDto = findAuthorDtoByIdentifier(identifier);
         return ResponseEntity.ok(authorDto);
     }
-    // --- End Modification ---
 
-    // Update still returns the basic Author entity
     @PutMapping("/{identifier}")
-    public ResponseEntity<Author> updateAuthor(@PathVariable String identifier,
-                                               @RequestParam("name") String newName) {
+    public ResponseEntity<Author> updateAuthor(@PathVariable(IDENTIFIER_PATH_VAR) String identifier,
+                                               @RequestParam(NAME_REQ_PARAM) String newName) {
+        // Find first to get ID if identifier is name
+        // This findAuthors is not cached, but the subsequent updateAuthor call handles cache updates
         Author author = authorService.findAuthors(identifier).stream().findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Author " + identifier + " "
-                        + ErrorMessages.NOT_FOUND_MESSAGE)); // Simplified find logic
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
+                                ErrorMessages.AUTHOR, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
 
+        // Update returns entity, service method caches the update
         Author updatedAuthor = authorService.updateAuthor(author.getId(), newName);
         return ResponseEntity.ok(updatedAuthor);
     }
 
     @DeleteMapping("/{identifier}")
-    public ResponseEntity<Void> deleteAuthor(@PathVariable String identifier) {
-        // Deletion logic remains the same, uses internal service methods
+    public ResponseEntity<Void> deleteAuthor(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
+        // Service methods handle cache eviction
         try {
-            // Attempt to parse as Long first
             Long authorId = Long.valueOf(identifier);
             authorService.deleteAuthor(authorId);
         } catch (NumberFormatException e) {
-            // If not a Long, assume it's a name
             authorService.deleteAuthorByName(identifier);
         }
         return ResponseEntity.noContent().build();
     }
 
-    // --- Modified to return List<AuthorDto> ---
     @GetMapping("/query")
-    public ResponseEntity<List<AuthorDto>> getAuthorsByQuery(@RequestParam(required = false)
-                                                                 String name) {
+    public ResponseEntity<List<AuthorDto>> getAuthorsByQuery(@RequestParam(required = false, value = NAME_REQ_PARAM)
+                                                             String name) {
+        // Fuzzy find in service is not cached
         List<AuthorDto> authors = authorService.findAuthorDtos(name);
         if (authors.isEmpty()) {
-            // Check for empty list here, as service doesn't throw for query
-            throw new ResourceNotFoundException("No authors found matching the query: "
-                    + (name != null ? name : "<all>"));
+            // Throw here for query specifically
+            throw new ResourceNotFoundException(
+                    String.format(ErrorMessages.QUERY_NO_RESULTS, "authors", (name != null ? name : "<all>")));
         }
         return ResponseEntity.ok(authors);
     }
 
+    // Helper uses cached DTO find methods from service
     private AuthorDto findAuthorDtoByIdentifier(String identifier) {
         try {
             Long authorId = Long.valueOf(identifier);
+            // findAuthorDtoById uses cache
             return authorService.findAuthorDtoById(authorId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Author with ID " + identifier
-                            + " " + ErrorMessages.NOT_FOUND_MESSAGE));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    ErrorMessages.AUTHOR, ErrorMessages.WITH_ID, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
-            // If not an ID, treat as name (assuming name is unique)
-            List<AuthorDto> authors = authorService.findAuthorDtos(identifier);
-            if (authors.isEmpty()) {
-                throw new ResourceNotFoundException("Author with name '" + identifier + "' "
-                        + ErrorMessages.NOT_FOUND_MESSAGE);
-            }
-            // Since name should be unique, return the first one found
+            // findAuthorDtos (fuzzy) is not cached, but we filter locally
+            List<AuthorDto> authors = authorService.findAuthorDtos(identifier); // Not cached
+            // We need precise match for identifier lookup
             return authors.stream()
                     .filter(dto -> dto.name().equalsIgnoreCase(identifier))
                     .findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException("Author with name '"
-                            + identifier + "' "
-                            + ErrorMessages.NOT_FOUND_MESSAGE));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    ErrorMessages.AUTHOR, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
         }
     }
 }

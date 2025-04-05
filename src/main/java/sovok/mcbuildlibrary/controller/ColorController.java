@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/controller/ColorController.java
 package sovok.mcbuildlibrary.controller;
 
 import java.util.List;
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import sovok.mcbuildlibrary.dto.ColorDto; // Import DTO
+import sovok.mcbuildlibrary.dto.ColorDto;
 import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Color;
@@ -21,51 +22,53 @@ import sovok.mcbuildlibrary.service.ColorService;
 @RequestMapping("/colors")
 public class ColorController {
 
+    private static final String IDENTIFIER_PATH_VAR = "identifier";
+    private static final String NAME_REQ_PARAM = "name";
+
     private final ColorService colorService;
 
     public ColorController(ColorService colorService) {
         this.colorService = colorService;
     }
 
-    // Create still returns the basic Color entity
     @PostMapping
-    public ResponseEntity<Color> createColor(@RequestParam("name") String name) {
+    public ResponseEntity<Color> createColor(@RequestParam(NAME_REQ_PARAM) String name) {
+        // Service method handles cache insert
         Color color = colorService.createColor(name);
         return new ResponseEntity<>(color, HttpStatus.CREATED);
     }
 
-    // --- Modified to return List<ColorDto> ---
     @GetMapping
     public ResponseEntity<List<ColorDto>> getAllColors() {
+        // Service method handles cache and initial not found
         List<ColorDto> colors = colorService.findAllColorDtos();
         return ResponseEntity.ok(colors);
     }
-    // --- End Modification ---
 
-    // --- Modified to return ColorDto ---
     @GetMapping("/{identifier}")
-    public ResponseEntity<ColorDto> getColorByIdentifier(@PathVariable String identifier) {
+    public ResponseEntity<ColorDto> getColorByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
+        // Helper uses cached service DTO method
         ColorDto colorDto = findColorDtoByIdentifier(identifier);
         return ResponseEntity.ok(colorDto);
     }
-    // --- End Modification ---
 
-    // Update still returns the basic Color entity
     @PutMapping("/{identifier}")
-    public ResponseEntity<Color> updateColor(@PathVariable String identifier, @RequestParam("name")
-        String newName) {
-        // Find the original color first to get ID
+    public ResponseEntity<Color> updateColor(@PathVariable(IDENTIFIER_PATH_VAR) String identifier,
+                                             @RequestParam(NAME_REQ_PARAM) String newName) {
+        // Find original first (not cached) to get ID if identifier is name
         Color color = colorService.findColors(identifier).stream().findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Color " + identifier + " "
-                        + ErrorMessages.NOT_FOUND_MESSAGE)); // Simplified find logic
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
+                                ErrorMessages.COLOR, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
 
+        // Service method handles cache update
         Color updatedColor = colorService.updateColor(color.getId(), newName);
         return ResponseEntity.ok(updatedColor);
     }
 
     @DeleteMapping("/{identifier}")
-    public ResponseEntity<Void> deleteColor(@PathVariable String identifier) {
-        // Deletion logic remains the same
+    public ResponseEntity<Void> deleteColor(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
+        // Service methods handle cache eviction
         try {
             Long colorId = Long.valueOf(identifier);
             colorService.deleteColor(colorId);
@@ -75,41 +78,36 @@ public class ColorController {
         return ResponseEntity.noContent().build();
     }
 
-    // --- Modified to return List<ColorDto> ---
     @GetMapping("/query")
-    public ResponseEntity<List<ColorDto>> getColorsByQuery(@RequestParam(required = false) String
-                                                                       name) {
+    public ResponseEntity<List<ColorDto>> getColorsByQuery(@RequestParam(required = false, value = NAME_REQ_PARAM)
+                                                           String name) {
+        // Service method (fuzzy) not cached
         List<ColorDto> colors = colorService.findColorDtos(name);
         if (colors.isEmpty()) {
-            // Check for empty list here
-            throw new ResourceNotFoundException("No colors found matching the query: "
-                    + (name != null ? name : "<all>"));
+            throw new ResourceNotFoundException(
+                    String.format(ErrorMessages.QUERY_NO_RESULTS, "colors", (name != null ? name : "<all>")));
         }
         return ResponseEntity.ok(colors);
     }
-    // --- End Modification ---
 
-    // --- Helper modified to return ColorDto and use DTO service methods ---
+    // Helper uses cached DTO find methods from service
     private ColorDto findColorDtoByIdentifier(String identifier) {
         try {
             Long colorId = Long.valueOf(identifier);
+            // findColorDtoById uses cache
             return colorService.findColorDtoById(colorId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Color with ID " + identifier
-                            + " " + ErrorMessages.NOT_FOUND_MESSAGE));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    ErrorMessages.COLOR, ErrorMessages.WITH_ID, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
-            // Treat as name
-            List<ColorDto> colors = colorService.findColorDtos(identifier);
-            if (colors.isEmpty()) {
-                throw new ResourceNotFoundException("Color with name '" + identifier + "' "
-                        + ErrorMessages.NOT_FOUND_MESSAGE);
-            }
+            // findColorDtos (fuzzy) is not cached, filter locally
+            List<ColorDto> colors = colorService.findColorDtos(identifier); // Not cached
             return colors.stream()
                     .filter(dto -> dto.name().equalsIgnoreCase(identifier))
                     .findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException("Color with name '"
-                            + identifier + "' "
-                            + ErrorMessages.NOT_FOUND_MESSAGE));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    ErrorMessages.COLOR, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
         }
     }
-    // --- End Modification ---
 }

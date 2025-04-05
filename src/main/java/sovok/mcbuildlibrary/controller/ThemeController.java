@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/controller/ThemeController.java
 package sovok.mcbuildlibrary.controller;
 
 import java.util.List;
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import sovok.mcbuildlibrary.dto.ThemeDto; // Import DTO
+import sovok.mcbuildlibrary.dto.ThemeDto;
 import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.model.Theme;
@@ -21,51 +22,53 @@ import sovok.mcbuildlibrary.service.ThemeService;
 @RequestMapping("/themes")
 public class ThemeController {
 
+    private static final String IDENTIFIER_PATH_VAR = "identifier";
+    private static final String NAME_REQ_PARAM = "name";
+
     private final ThemeService themeService;
 
     public ThemeController(ThemeService themeService) {
         this.themeService = themeService;
     }
 
-    // Create still returns the basic Theme entity
     @PostMapping
-    public ResponseEntity<Theme> createTheme(@RequestParam("name") String name) {
+    public ResponseEntity<Theme> createTheme(@RequestParam(NAME_REQ_PARAM) String name) {
+        // Service method handles cache insert
         Theme theme = themeService.createTheme(name);
         return new ResponseEntity<>(theme, HttpStatus.CREATED);
     }
 
-    // --- Modified to return List<ThemeDto> ---
     @GetMapping
     public ResponseEntity<List<ThemeDto>> getAllThemes() {
+        // Service method handles cache and initial not found
         List<ThemeDto> themes = themeService.findAllThemeDtos();
         return ResponseEntity.ok(themes);
     }
-    // --- End Modification ---
 
-    // --- Modified to return ThemeDto ---
     @GetMapping("/{identifier}")
-    public ResponseEntity<ThemeDto> getThemeByIdentifier(@PathVariable String identifier) {
+    public ResponseEntity<ThemeDto> getThemeByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
+        // Helper uses cached service DTO method
         ThemeDto themeDto = findThemeDtoByIdentifier(identifier);
         return ResponseEntity.ok(themeDto);
     }
-    // --- End Modification ---
 
-    // Update still returns the basic Theme entity
     @PutMapping("/{identifier}")
-    public ResponseEntity<Theme> updateTheme(@PathVariable String identifier, @RequestParam("name")
-        String newName) {
-        // Find the original theme first to get ID
+    public ResponseEntity<Theme> updateTheme(@PathVariable(IDENTIFIER_PATH_VAR) String identifier,
+                                             @RequestParam(NAME_REQ_PARAM) String newName) {
+        // Find original first (not cached) to get ID if identifier is name
         Theme theme = themeService.findThemes(identifier).stream().findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Theme " + identifier + " "
-                        + ErrorMessages.NOT_FOUND_MESSAGE)); // Simplified find logic
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
+                                ErrorMessages.THEME, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
 
+        // Service method handles cache update
         Theme updatedTheme = themeService.updateTheme(theme.getId(), newName);
         return ResponseEntity.ok(updatedTheme);
     }
 
     @DeleteMapping("/{identifier}")
-    public ResponseEntity<Void> deleteTheme(@PathVariable String identifier) {
-        // Deletion logic remains the same
+    public ResponseEntity<Void> deleteTheme(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
+        // Service methods handle cache eviction
         try {
             Long themeId = Long.valueOf(identifier);
             themeService.deleteTheme(themeId);
@@ -75,41 +78,36 @@ public class ThemeController {
         return ResponseEntity.noContent().build();
     }
 
-    // --- Modified to return List<ThemeDto> ---
     @GetMapping("/query")
-    public ResponseEntity<List<ThemeDto>> getThemesByQuery(@RequestParam(required = false)
-                                                               String name) {
+    public ResponseEntity<List<ThemeDto>> getThemesByQuery(@RequestParam(required = false, value = NAME_REQ_PARAM)
+                                                           String name) {
+        // Service method (fuzzy) not cached
         List<ThemeDto> themes = themeService.findThemeDtos(name);
         if (themes.isEmpty()) {
-            // Check for empty list here
-            throw new ResourceNotFoundException("No themes found matching the query: "
-                    + (name != null ? name : "<all>"));
+            throw new ResourceNotFoundException(
+                    String.format(ErrorMessages.QUERY_NO_RESULTS, "themes", (name != null ? name : "<all>")));
         }
         return ResponseEntity.ok(themes);
     }
-    // --- End Modification ---
 
-    // --- Helper modified to return ThemeDto and use DTO service methods ---
+    // Helper uses cached DTO find methods from service
     private ThemeDto findThemeDtoByIdentifier(String identifier) {
         try {
             Long themeId = Long.valueOf(identifier);
+            // findThemeDtoById uses cache
             return themeService.findThemeDtoById(themeId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Theme with ID " + identifier
-                            + " " + ErrorMessages.NOT_FOUND_MESSAGE));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    ErrorMessages.THEME, ErrorMessages.WITH_ID, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
-            // Treat as name
-            List<ThemeDto> themes = themeService.findThemeDtos(identifier);
-            if (themes.isEmpty()) {
-                throw new ResourceNotFoundException("Theme with name '" + identifier + "' "
-                        + ErrorMessages.NOT_FOUND_MESSAGE);
-            }
+            // findThemeDtos (fuzzy) is not cached, filter locally
+            List<ThemeDto> themes = themeService.findThemeDtos(identifier); // Not cached
             return themes.stream()
                     .filter(dto -> dto.name().equalsIgnoreCase(identifier))
                     .findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException("Theme with name '"
-                            + identifier + "' "
-                            + ErrorMessages.NOT_FOUND_MESSAGE));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    ErrorMessages.THEME, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
         }
     }
-    // --- End Modification ---
 }
