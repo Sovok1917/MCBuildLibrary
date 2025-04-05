@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/AuthorController.java
 package sovok.mcbuildlibrary.controller;
 
 import java.util.List;
@@ -13,8 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import sovok.mcbuildlibrary.dto.AuthorDto;
-import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.service.AuthorService;
 
@@ -33,7 +32,6 @@ public class AuthorController {
 
     @PostMapping
     public ResponseEntity<Author> createAuthor(@RequestParam(NAME_REQ_PARAM) String name) {
-        // Create returns the entity, which might not be cached directly, but service method caches it
         Author author = authorService.createAuthor(name);
         return new ResponseEntity<>(author, HttpStatus.CREATED);
     }
@@ -46,7 +44,8 @@ public class AuthorController {
     }
 
     @GetMapping("/{identifier}")
-    public ResponseEntity<AuthorDto> getAuthorByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
+    public ResponseEntity<AuthorDto> getAuthorByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR)
+                                                               String identifier) {
         // Helper method uses cached service methods
         AuthorDto authorDto = findAuthorDtoByIdentifier(identifier);
         return ResponseEntity.ok(authorDto);
@@ -55,12 +54,11 @@ public class AuthorController {
     @PutMapping("/{identifier}")
     public ResponseEntity<Author> updateAuthor(@PathVariable(IDENTIFIER_PATH_VAR) String identifier,
                                                @RequestParam(NAME_REQ_PARAM) String newName) {
-        // Find first to get ID if identifier is name
-        // This findAuthors is not cached, but the subsequent updateAuthor call handles cache updates
         Author author = authorService.findAuthors(identifier).stream().findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                ErrorMessages.AUTHOR, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                        String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                StringConstants.AUTHOR, StringConstants.WITH_NAME, identifier,
+                                StringConstants.NOT_FOUND_MESSAGE)));
 
         // Update returns entity, service method caches the update
         Author updatedAuthor = authorService.updateAuthor(author.getId(), newName);
@@ -80,14 +78,16 @@ public class AuthorController {
     }
 
     @GetMapping("/query")
-    public ResponseEntity<List<AuthorDto>> getAuthorsByQuery(@RequestParam(required = false, value = NAME_REQ_PARAM)
+    public ResponseEntity<List<AuthorDto>> getAuthorsByQuery(@RequestParam(required = false,
+            value = NAME_REQ_PARAM)
                                                              String name) {
         // Fuzzy find in service is not cached
         List<AuthorDto> authors = authorService.findAuthorDtos(name);
         if (authors.isEmpty()) {
             // Throw here for query specifically
             throw new ResourceNotFoundException(
-                    String.format(ErrorMessages.QUERY_NO_RESULTS, "authors", (name != null ? name : "<all>")));
+                    String.format(StringConstants.QUERY_NO_RESULTS, "authors",
+                            (name != null ? name : "<all>")));
         }
         return ResponseEntity.ok(authors);
     }
@@ -99,8 +99,9 @@ public class AuthorController {
             // findAuthorDtoById uses cache
             return authorService.findAuthorDtoById(authorId)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    ErrorMessages.AUTHOR, ErrorMessages.WITH_ID, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    StringConstants.AUTHOR, StringConstants.WITH_ID, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
             // findAuthorDtos (fuzzy) is not cached, but we filter locally
             List<AuthorDto> authors = authorService.findAuthorDtos(identifier); // Not cached
@@ -109,8 +110,9 @@ public class AuthorController {
                     .filter(dto -> dto.name().equalsIgnoreCase(identifier))
                     .findFirst()
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    ErrorMessages.AUTHOR, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    StringConstants.AUTHOR, StringConstants.WITH_NAME, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
         }
     }
 }

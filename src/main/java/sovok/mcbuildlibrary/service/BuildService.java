@@ -1,16 +1,19 @@
-// file: src/main/java/sovok/mcbuildlibrary/service/BuildService.java
 package sovok.mcbuildlibrary.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired; // Import Autowired
+import org.springframework.context.annotation.Lazy; // Import Lazy
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import sovok.mcbuildlibrary.cache.InMemoryCache; // Import Cache
+import sovok.mcbuildlibrary.cache.InMemoryCache;
 import sovok.mcbuildlibrary.exception.EntityInUseException;
-import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.repository.BuildRepository;
 
@@ -18,209 +21,214 @@ import sovok.mcbuildlibrary.repository.BuildRepository;
 public class BuildService {
 
     private static final Logger logger = LoggerFactory.getLogger(BuildService.class);
-    private static final String CACHE_ENTITY_TYPE = ErrorMessages.BUILD;
+    private static final String CACHE_ENTITY_TYPE = StringConstants.BUILD;
 
     private final BuildRepository buildRepository;
-    private final InMemoryCache cache; // Inject Cache
+    private final InMemoryCache cache;
 
-    // Removed direct service dependencies to avoid potential circular issues if services call each other.
-    // Build creation/update logic requiring other entities is handled in the controller now.
+    // --- Self-injection Fix ---
+    private BuildService self;
+
+    @Autowired
+    @Lazy // Use @Lazy to break potential immediate circular dependency during bean creation
+    public void setSelf(BuildService self) {
+        this.self = self;
+    }
+    // --- End Self-injection Fix ---
+
     public BuildService(BuildRepository buildRepository, InMemoryCache cache) {
         this.buildRepository = buildRepository;
         this.cache = cache;
+        // Note: 'self' will be injected via setter after construction
     }
 
+    // ... (createBuild remains the same) ...
     @Transactional
     public Build createBuild(Build build) {
-        // Check for existing build name
         Optional<Build> existingBuild = buildRepository.findByName(build.getName());
         if (existingBuild.isPresent()) {
-            throw new EntityInUseException(String.format(ErrorMessages.RESOURCE_ALREADY_EXISTS_TEMPLATE,
-                    CACHE_ENTITY_TYPE, ErrorMessages.WITH_NAME, build.getName(), ErrorMessages.ALREADY_EXISTS_MESSAGE));
+            throw new EntityInUseException(String.format(
+                    StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
+                    CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, build.getName(),
+                    StringConstants.ALREADY_EXISTS_MESSAGE));
         }
 
-        // Save the new build
         Build savedBuild = buildRepository.save(build);
         logger.info("Created Build with ID: {}", savedBuild.getId());
 
-        // --- Cache Modification ---
+        // --- Cache Invalidation/Update ---
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId()), savedBuild);
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE)); // Invalidate list cache
-        // --- End Cache Modification ---
+        cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getName()), savedBuild);
+        // Cache by name too
+        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
+        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE); // Invalidate query caches
+        // --- End Cache Invalidation/Update ---
 
         return savedBuild;
     }
 
+    // Marked readOnly, good practice if called externally
     @Transactional(readOnly = true)
     public Optional<Build> findBuildById(Long id) {
         String cacheKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, id);
-
-        // --- Cache Read ---
         Optional<Build> cachedBuild = cache.get(cacheKey);
         if (cachedBuild.isPresent()) {
             return cachedBuild;
         }
-        // --- End Cache Read ---
 
         Optional<Build> buildOpt = buildRepository.findById(id);
-
-        // --- Cache Write ---
         buildOpt.ifPresent(build -> cache.put(cacheKey, build));
-        // --- End Cache Write ---
-
         return buildOpt;
     }
 
-    // Finding by name might return multiple, but logic seems to assume unique name find.
-    // Caching exact name matches is possible, but fuzzy/like searches are complex to cache generically.
+    // Marked readOnly
     @Transactional(readOnly = true)
     public Optional<Build> findByName(String name) {
-        // Let's cache specific name lookups if they are intended to be unique identifiers
-        String cacheKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, name); // Use name as identifier part
-
-        // --- Cache Read ---
+        String cacheKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, name); // Key by name
         Optional<Build> cachedBuild = cache.get(cacheKey);
         if (cachedBuild.isPresent()) {
-            // Ensure the cached build actually matches the requested name (case-insensitive check perhaps?)
-            if(cachedBuild.get().getName().equalsIgnoreCase(name)) {
+            if (cachedBuild.get().getName().equalsIgnoreCase(name)) {
                 return cachedBuild;
             } else {
-                // Cache contained a key collision or stale data, evict it.
                 cache.evict(cacheKey);
             }
         }
-        // --- End Cache Read ---
 
-        // Fetching by name (exact match)
         Optional<Build> buildOpt = buildRepository.findByName(name);
-
-        // --- Cache Write ---
-        // Cache only if found, using the exact name as part of the key
-        buildOpt.ifPresent(build -> cache.put(cacheKey, build));
-        // --- End Cache Write ---
-
+        buildOpt.ifPresent(build -> cache.put(cacheKey, build)); // Cache by name
         return buildOpt;
     }
 
-
+    // Marked readOnly
     @Transactional(readOnly = true)
     public List<Build> findAll() {
         String cacheKey = InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE);
-
-        // --- Cache Read ---
         Optional<List<Build>> cachedBuilds = cache.get(cacheKey);
         if (cachedBuilds.isPresent()) {
             return cachedBuilds.get();
         }
-        // --- End Cache Read ---
 
         List<Build> builds = buildRepository.findAll();
-        // Don't throw not found here, let controller handle empty list
-        // if (builds.isEmpty()) {
-        //     throw new ResourceNotFoundException(String.format(ErrorMessages.NO_ENTITIES_AVAILABLE, "builds"));
-        // }
-
-        // --- Cache Write ---
-        // Only cache if the list is not empty? Or cache empty lists too? Caching empty list is fine.
         cache.put(cacheKey, builds);
-        // --- End Cache Write ---
-
         return builds;
     }
 
+    // Marked readOnly
     @Transactional(readOnly = true)
-    public List<Build> filterBuilds(String author, String name, String theme, List<String> colors) {
-        // Complex queries are hard to cache effectively with a simple key/value store.
-        // Skipping cache for filterBuilds. Consider more advanced caching solutions if needed.
-        String colorsStr = (colors != null && !colors.isEmpty()) ? String.join(",", colors) : null;
-        return buildRepository.fuzzyFilterBuilds(author, name, theme, colorsStr);
+    public List<Build> filterBuilds(String author, String name, String theme, String color) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("author", author);
+        params.put("name", name);
+        params.put("theme", theme);
+        params.put("color", color);
+
+        String queryKey = InMemoryCache.generateQueryKey(CACHE_ENTITY_TYPE, params);
+
+        Optional<List<Build>> cachedResult = cache.get(queryKey);
+        if (cachedResult.isPresent()) {
+            return cachedResult.get();
+        }
+
+        List<Build> filteredBuilds = buildRepository.fuzzyFilterBuilds(author, name, theme, color);
+        cache.put(queryKey, filteredBuilds);
+        return filteredBuilds;
     }
 
-    // Screenshot and SchemFile data are derived from the Build entity.
-    // Caching the Build entity itself (in findBuildById) is the primary optimization here.
-    // These methods don't need separate caching but rely on the cached Build.
-    @Transactional(readOnly = true)
+    // This method should be transactional if it needs a consistent view
+    // or if findBuildById wasn't transactional itself. readOnly=true is appropriate.
+    @Transactional(readOnly = true) // Line 132 approx
     public Optional<String> getScreenshot(Long id, int index) {
-        return findBuildById(id) // This uses the cache
+        // Call findBuildById via self to ensure transaction propagation if needed
+        return self.findBuildById(id) // Line 135: Use self.
                 .flatMap(build -> {
-                    if (build.getScreenshots() == null || index < 0 || index >= build.getScreenshots().size()) {
+                    if (build.getScreenshots() == null || index < 0 || index
+                            >= build.getScreenshots().size()) {
                         return Optional.empty();
                     }
                     return Optional.of(build.getScreenshots().get(index));
                 });
     }
 
-    @Transactional(readOnly = true)
+    // Similar to getScreenshot, add readOnly transaction
+    @Transactional(readOnly = true) // Line 143 approx
     public Optional<byte[]> getSchemFile(Long id) {
-        return findBuildById(id) // This uses the cache
-                .map(Build::getSchemFile) // Get the byte array directly
-                .filter(schemBytes -> schemBytes != null && schemBytes.length > 0); // Ensure it's not null/empty
+        // Call findBuildById via self
+        return self.findBuildById(id) // Line 146: Use self.
+                .map(Build::getSchemFile)
+                .filter(schemBytes -> schemBytes.length > 0);
     }
 
-
-    @Transactional
+    // This is a write operation, @Transactional is correct
+    @Transactional // Line 150 approx
     public Build updateBuild(Long id, Build updatedBuildData) {
-        // Find the existing build
-        Build existingBuild = findBuildById(id) // Uses cache
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                        CACHE_ENTITY_TYPE, ErrorMessages.WITH_ID, id, ErrorMessages.NOT_FOUND_MESSAGE)));
+        // Call findBuildById via self
+        Build existingBuild = self.findBuildById(id) // Line 153: Use self.
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                        StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                        CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
+                        StringConstants.NOT_FOUND_MESSAGE)));
 
-        // Check if the new name conflicts with another existing build
+        // Direct repo calls are fine within the already started transaction
         Optional<Build> buildWithSameName = buildRepository.findByName(updatedBuildData.getName());
         if (buildWithSameName.isPresent() && !buildWithSameName.get().getId().equals(id)) {
-            throw new EntityInUseException(String.format(ErrorMessages.RESOURCE_ALREADY_EXISTS_TEMPLATE,
-                    CACHE_ENTITY_TYPE, ErrorMessages.WITH_NAME, updatedBuildData.getName(), ErrorMessages.ALREADY_EXISTS_MESSAGE));
+            throw new EntityInUseException(String.format(
+                    StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
+                    CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, updatedBuildData.getName(),
+                    StringConstants.ALREADY_EXISTS_MESSAGE));
         }
 
-        // Store old name if changed, to evict old name-based cache key if we cached it
         String oldName = existingBuild.getName();
-        boolean nameChanged = !oldName.equals(updatedBuildData.getName());
+        final boolean nameChanged = !oldName.equals(updatedBuildData.getName());
 
-        // Update fields
         existingBuild.setName(updatedBuildData.getName());
-        existingBuild.setAuthors(updatedBuildData.getAuthors()); // Assuming these are managed entities
+        existingBuild.setAuthors(updatedBuildData.getAuthors());
         existingBuild.setThemes(updatedBuildData.getThemes());
         existingBuild.setDescription(updatedBuildData.getDescription());
         existingBuild.setColors(updatedBuildData.getColors());
         existingBuild.setScreenshots(updatedBuildData.getScreenshots());
-        if (updatedBuildData.getSchemFile() != null) { // Only update schem if provided
+        if (updatedBuildData.getSchemFile() != null) {
             existingBuild.setSchemFile(updatedBuildData.getSchemFile());
         }
 
-        // Save the updated build
+
         Build savedBuild = buildRepository.save(existingBuild);
         logger.info("Updated Build with ID: {}", savedBuild.getId());
 
-        // --- Cache Modification ---
-        cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId()), savedBuild); // Update by ID
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE)); // Invalidate list cache
+        // Cache updates...
+        cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId()), savedBuild);
+        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
+        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
-        // If name was used as a cache key and it changed, evict the old name key and potentially cache the new one
         if (nameChanged) {
             cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, oldName));
-            cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getName()), savedBuild);
+            cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getName()),
+                    savedBuild);
+        } else {
+            cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getName()),
+                    savedBuild);
         }
-        // --- End Cache Modification ---
 
         return savedBuild;
     }
 
     @Transactional
     public void deleteBuild(Long id) {
-        // Check existence first to provide a clear error and get data for cache eviction
+        // Direct repo call is fine within this transaction
         Build build = buildRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                        CACHE_ENTITY_TYPE, ErrorMessages.WITH_ID, id, ErrorMessages.NOT_FOUND_MESSAGE)));
+                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                        StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                        CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
+                        StringConstants.NOT_FOUND_MESSAGE)));
 
-        String name = build.getName(); // Get name for potential name-key eviction
+        final String name = build.getName();
 
         buildRepository.deleteById(id);
         logger.info("Deleted Build with ID: {}", id);
 
-        // --- Cache Modification ---
-        cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, id)); // Evict by ID
-        cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, name)); // Evict by name (if cached)
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE)); // Invalidate list cache
-        // --- End Cache Modification ---
+        // Cache invalidation...
+        cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, id));
+        cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, name));
+        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
+        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
     }
 }

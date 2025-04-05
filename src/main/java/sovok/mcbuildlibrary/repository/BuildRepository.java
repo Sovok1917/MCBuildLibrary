@@ -15,7 +15,8 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
         String getName();
     }
 
-    @Query(value = "SELECT DISTINCT b.* FROM build b "
+    // Updated Query: Accepts single :color, uses SIMILARITY directly
+    @Query(value = "SELECT DISTINCT b.* FROM build b " // Use DISTINCT or GROUP BY
             + "LEFT JOIN build_authors ba ON b.id = ba.build_id "
             + "LEFT JOIN author a ON ba.author_id = a.id "
             + "LEFT JOIN build_themes bt ON b.id = bt.build_id "
@@ -25,19 +26,16 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
             + "WHERE (:author IS NULL OR SIMILARITY(a.name, :author) > 0.3) "
             + "AND (:name IS NULL OR SIMILARITY(b.name, :name) > 0.3) "
             + "AND (:theme IS NULL OR SIMILARITY(t.name, :theme) > 0.3) "
-            + "AND (:colors IS NULL OR c.name ILIKE ANY (string_to_array(:colors, ','))) "
-            + "GROUP BY b.id",
+            + "AND (:color IS NULL OR SIMILARITY(c.name, :color) > 0.3) "
+            + "GROUP BY b.id", // Keep GROUP BY for author/theme joins
             nativeQuery = true)
     List<Build> fuzzyFilterBuilds(
             @Param("author") String author,
             @Param("name") String name,
             @Param("theme") String theme,
-            @Param("colors") String colors);
+            @Param("color") String color);
 
     Optional<Build> findByName(String name);
-
-    @Query("SELECT b FROM Build b WHERE LOWER(b.name) LIKE :namePattern")
-    List<Build> findByNameLike(@Param("namePattern") String namePattern);
 
     @Query("SELECT b FROM Build b JOIN b.themes t WHERE t.id = :themeId")
     List<Build> findBuildsByThemeId(@Param("themeId") Long themeId);

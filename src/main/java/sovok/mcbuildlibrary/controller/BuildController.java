@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/BuildController.java
 package sovok.mcbuildlibrary.controller;
 
 import java.io.IOException;
@@ -18,8 +17,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.model.Color;
@@ -33,17 +32,20 @@ import sovok.mcbuildlibrary.service.ThemeService;
 @RequestMapping("/builds")
 public class BuildController {
 
+    // Define constants for parameter names
     private static final String IDENTIFIER_PATH_VAR = "identifier";
     private static final String NAME_REQ_PARAM = "name";
     private static final String AUTHORS_REQ_PARAM = "authors";
     private static final String THEMES_REQ_PARAM = "themes";
     private static final String DESCRIPTION_REQ_PARAM = "description";
-    private static final String COLORS_REQ_PARAM = "colors";
+    private static final String COLORS_REQ_PARAM = "colors"; // Keep this for create/update where
+    // multiple are expected
     private static final String SCREENSHOTS_REQ_PARAM = "screenshots";
     private static final String SCHEM_FILE_REQ_PARAM = "schemFile";
     private static final String AUTHOR_QUERY_PARAM = "author";
     private static final String THEME_QUERY_PARAM = "theme";
-    private static final String COLOR_QUERY_PARAM = "color";
+    private static final String COLOR_QUERY_PARAM = "color"; // Use this for the single color query
+    // param
     private static final String INDEX_QUERY_PARAM = "index";
 
 
@@ -52,7 +54,6 @@ public class BuildController {
     private final ThemeService themeService;
     private final ColorService colorService;
 
-    // Inject services needed for build creation/update assembly
     public BuildController(BuildService buildService, AuthorService authorService,
                            ThemeService themeService, ColorService colorService) {
         this.buildService = buildService;
@@ -61,32 +62,32 @@ public class BuildController {
         this.colorService = colorService;
     }
 
-    // Helper to assemble Build object from request params, uses findOrCreate for related entities
     private Build createBuildFromParams(String name, List<String> authorNames,
                                         List<String> themeNames,
                                         String description, List<String> colorNames,
+                                        // Still accepts list here
                                         List<String> screenshots,
                                         MultipartFile schemFile) throws IOException {
-        // These findOrCreate methods are not directly cached but are usually part of a write operation
         Set<Author> authors = authorNames.stream()
                 .map(authorService::findOrCreateAuthor)
                 .collect(Collectors.toSet());
         Set<Theme> themes = themeNames.stream()
                 .map(themeService::findOrCreateTheme)
                 .collect(Collectors.toSet());
-        Set<Color> colors = colorNames.stream()
+        Set<Color> colors = colorNames.stream() // Processes list for creation
                 .map(colorService::findOrCreateColor)
                 .collect(Collectors.toSet());
 
-        byte[] schemBytes = (schemFile != null && !schemFile.isEmpty()) ? schemFile.getBytes() : null;
+        byte[] schemBytes = (schemFile != null && !schemFile.isEmpty()) ? schemFile.getBytes()
+                : null;
 
         return Build.builder()
                 .name(name)
                 .authors(authors)
                 .themes(themes)
                 .description(description)
-                .colors(colors)
-                .screenshots(screenshots != null ? screenshots : List.of()) // Ensure not null
+                .colors(colors) // Assigns the Set<Color>
+                .screenshots(screenshots != null ? screenshots : List.of())
                 .schemFile(schemBytes)
                 .build();
     }
@@ -97,30 +98,30 @@ public class BuildController {
             @RequestParam(AUTHORS_REQ_PARAM) List<String> authorNames,
             @RequestParam(THEMES_REQ_PARAM) List<String> themeNames,
             @RequestParam(value = DESCRIPTION_REQ_PARAM, required = false) String description,
-            @RequestParam(COLORS_REQ_PARAM) List<String> colorNames,
+            @RequestParam(COLORS_REQ_PARAM) List<String> colorNames, // Post accepts multiple colors
             @RequestParam(value = SCREENSHOTS_REQ_PARAM, required = false) List<String> screenshots,
             @RequestParam(SCHEM_FILE_REQ_PARAM) MultipartFile schemFile) throws IOException {
 
-        Build buildToCreate = createBuildFromParams(name, authorNames, themeNames, description, colorNames,
+        Build buildToCreate = createBuildFromParams(name, authorNames, themeNames, description,
+                colorNames,
                 screenshots, schemFile);
-        // Service method handles caching the created build
         Build createdBuild = buildService.createBuild(buildToCreate);
         return new ResponseEntity<>(createdBuild, HttpStatus.CREATED);
     }
 
     @GetMapping("/{identifier}")
-    public ResponseEntity<Build> getBuildByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
-        // Helper uses cached service methods
+    public ResponseEntity<Build> getBuildByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR)
+                                                          String identifier) {
         Build build = findBuildByIdentifier(identifier);
         return ResponseEntity.ok(build);
     }
 
     @GetMapping
     public ResponseEntity<List<Build>> getAllBuilds() {
-        // Service method uses cache
         List<Build> builds = buildService.findAll();
-        if (builds.isEmpty()) { // Check for empty list AFTER potentially hitting cache
-            throw new ResourceNotFoundException(String.format(ErrorMessages.NO_ENTITIES_AVAILABLE, "builds"));
+        if (builds.isEmpty()) {
+            throw new ResourceNotFoundException(String.format(StringConstants.NO_ENTITIES_AVAILABLE,
+                    "builds"));
         }
         return ResponseEntity.ok(builds);
     }
@@ -130,25 +131,31 @@ public class BuildController {
             @RequestParam(required = false, value = AUTHOR_QUERY_PARAM) String author,
             @RequestParam(required = false, value = NAME_REQ_PARAM) String name,
             @RequestParam(required = false, value = THEME_QUERY_PARAM) String theme,
-            @RequestParam(value = COLOR_QUERY_PARAM, required = false) List<String> colors) {
-        // Service method (fuzzy query) is not cached
-        List<Build> filteredBuilds = buildService.filterBuilds(author, name, theme, colors);
-        if (filteredBuilds.isEmpty()) { // Check after query
-            throw new ResourceNotFoundException(String.format(ErrorMessages.QUERY_NO_RESULTS, "builds", "provided criteria"));
+            // Updated: Accept single String for 'color' query parameter
+            @RequestParam(value = COLOR_QUERY_PARAM, required = false) String color) {
+        // Changed from List<String> to String
+
+        // Call service method with the single color string
+        List<Build> filteredBuilds = buildService.filterBuilds(author, name, theme, color);
+        if (filteredBuilds.isEmpty()) {
+            throw new ResourceNotFoundException(String.format(StringConstants.QUERY_NO_RESULTS,
+                    "builds", "provided criteria"));
         }
         return ResponseEntity.ok(filteredBuilds);
     }
 
     @GetMapping("/{identifier}/screenshot")
-    public ResponseEntity<String> getScreenshot(@PathVariable(IDENTIFIER_PATH_VAR) String identifier,
+    public ResponseEntity<String> getScreenshot(@PathVariable(IDENTIFIER_PATH_VAR)
+                                                    String identifier,
                                                 @RequestParam(INDEX_QUERY_PARAM) int index) {
-        // Relies on findBuildByIdentifier -> findBuildById (cached)
         Build build = findBuildByIdentifier(identifier);
-        return buildService.getScreenshot(build.getId(), index) // Service method uses findBuildById (cached)
+        return buildService.getScreenshot(build.getId(), index)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format("Screenshot index %d for %s %s '%s' %s", index, ErrorMessages.BUILD,
-                                ErrorMessages.WITH_ID, build.getId(), ErrorMessages.NOT_FOUND_MESSAGE))); // More specific message
+                        String.format("Screenshot index %d for %s %s '%s' %s", index,
+                                StringConstants.BUILD,
+                                StringConstants.WITH_ID, build.getId(),
+                                StringConstants.NOT_FOUND_MESSAGE)));
     }
 
     @PutMapping(value = "/{identifier}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -160,62 +167,54 @@ public class BuildController {
             @RequestParam(value = DESCRIPTION_REQ_PARAM, required = false) String description,
             @RequestParam(COLORS_REQ_PARAM) List<String> colorNames,
             @RequestParam(value = SCREENSHOTS_REQ_PARAM, required = false) List<String> screenshots,
-            @RequestParam(value = SCHEM_FILE_REQ_PARAM, required = false) MultipartFile schemFile) throws IOException { // Make schem optional on update
+            @RequestParam(value = SCHEM_FILE_REQ_PARAM, required = false) MultipartFile schemFile)
+            throws IOException {
 
-        // Find existing build (uses cache)
         Build existingBuild = findBuildByIdentifier(identifier);
-
-        // Assemble updated data
         Build updatedBuildData = createBuildFromParams(name, authorNames, themeNames, description,
-                colorNames, screenshots, schemFile); // schemFile can be null here if not provided
-
-        // Service method handles cache update
+                colorNames, screenshots, schemFile);
         Build result = buildService.updateBuild(existingBuild.getId(), updatedBuildData);
         return ResponseEntity.ok(result);
     }
 
     @DeleteMapping("/{identifier}")
     public ResponseEntity<Void> deleteBuild(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
-        // Find first (uses cache) to get ID
         Build build = findBuildByIdentifier(identifier);
-        // Service method handles cache eviction
         buildService.deleteBuild(build.getId());
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{identifier}/schem")
-    public ResponseEntity<byte[]> getSchemFile(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
-        // Find build first (uses cache)
+    public ResponseEntity<byte[]> getSchemFile(@PathVariable(IDENTIFIER_PATH_VAR)
+                                                   String identifier) {
         Build build = findBuildByIdentifier(identifier);
-        // Service method uses findBuildById (cached)
         byte[] schemFile = buildService.getSchemFile(build.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(ErrorMessages.SCHEM_FILE_FOR_BUILD_NOT_FOUND, identifier)));
+                        String.format(StringConstants.SCHEM_FILE_FOR_BUILD_NOT_FOUND, identifier)));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        // Sanitize filename
-        String filename = build.getName().replaceAll("[^a-zA-Z0-9-_\\.]", "_") + ".schem";
+        String filename = build.getName().replaceAll("[^a-zA-Z0-9-_.]", "_")
+                + ".schem";
         headers.setContentDispositionFormData("attachment", filename);
         headers.setContentLength(schemFile.length);
         return new ResponseEntity<>(schemFile, headers, HttpStatus.OK);
     }
 
-    // Helper uses cached service methods (findBuildById, findByName)
     private Build findBuildByIdentifier(String identifier) {
         try {
             Long buildId = Long.valueOf(identifier);
-            // findBuildById uses cache
             return buildService.findBuildById(buildId)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    ErrorMessages.BUILD, ErrorMessages.WITH_ID, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    StringConstants.BUILD, StringConstants.WITH_ID, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
-            // findByName uses cache (for exact match)
-            return buildService.findByName(identifier) // Assumes name is unique identifier here
+            return buildService.findByName(identifier)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    ErrorMessages.BUILD, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    StringConstants.BUILD, StringConstants.WITH_NAME, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
         }
     }
 }

@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/ThemeController.java
 package sovok.mcbuildlibrary.controller;
 
 import java.util.List;
@@ -13,8 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import sovok.mcbuildlibrary.dto.ThemeDto;
-import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Theme;
 import sovok.mcbuildlibrary.service.ThemeService;
 
@@ -46,7 +45,8 @@ public class ThemeController {
     }
 
     @GetMapping("/{identifier}")
-    public ResponseEntity<ThemeDto> getThemeByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
+    public ResponseEntity<ThemeDto> getThemeByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR)
+                                                             String identifier) {
         // Helper uses cached service DTO method
         ThemeDto themeDto = findThemeDtoByIdentifier(identifier);
         return ResponseEntity.ok(themeDto);
@@ -55,11 +55,11 @@ public class ThemeController {
     @PutMapping("/{identifier}")
     public ResponseEntity<Theme> updateTheme(@PathVariable(IDENTIFIER_PATH_VAR) String identifier,
                                              @RequestParam(NAME_REQ_PARAM) String newName) {
-        // Find original first (not cached) to get ID if identifier is name
         Theme theme = themeService.findThemes(identifier).stream().findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                ErrorMessages.THEME, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                        String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                StringConstants.THEME, StringConstants.WITH_NAME, identifier,
+                                StringConstants.NOT_FOUND_MESSAGE)));
 
         // Service method handles cache update
         Theme updatedTheme = themeService.updateTheme(theme.getId(), newName);
@@ -79,13 +79,15 @@ public class ThemeController {
     }
 
     @GetMapping("/query")
-    public ResponseEntity<List<ThemeDto>> getThemesByQuery(@RequestParam(required = false, value = NAME_REQ_PARAM)
+    public ResponseEntity<List<ThemeDto>> getThemesByQuery(@RequestParam(required = false,
+            value = NAME_REQ_PARAM)
                                                            String name) {
         // Service method (fuzzy) not cached
         List<ThemeDto> themes = themeService.findThemeDtos(name);
         if (themes.isEmpty()) {
             throw new ResourceNotFoundException(
-                    String.format(ErrorMessages.QUERY_NO_RESULTS, "themes", (name != null ? name : "<all>")));
+                    String.format(StringConstants.QUERY_NO_RESULTS, "themes",
+                            (name != null ? name : "<all>")));
         }
         return ResponseEntity.ok(themes);
     }
@@ -97,8 +99,9 @@ public class ThemeController {
             // findThemeDtoById uses cache
             return themeService.findThemeDtoById(themeId)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    ErrorMessages.THEME, ErrorMessages.WITH_ID, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    StringConstants.THEME, StringConstants.WITH_ID, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
             // findThemeDtos (fuzzy) is not cached, filter locally
             List<ThemeDto> themes = themeService.findThemeDtos(identifier); // Not cached
@@ -106,8 +109,9 @@ public class ThemeController {
                     .filter(dto -> dto.name().equalsIgnoreCase(identifier))
                     .findFirst()
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    ErrorMessages.THEME, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    StringConstants.THEME, StringConstants.WITH_NAME, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
         }
     }
 }

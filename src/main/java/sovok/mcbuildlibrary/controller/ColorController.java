@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/ColorController.java
 package sovok.mcbuildlibrary.controller;
 
 import java.util.List;
@@ -13,8 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import sovok.mcbuildlibrary.dto.ColorDto;
-import sovok.mcbuildlibrary.exception.ErrorMessages;
 import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Color;
 import sovok.mcbuildlibrary.service.ColorService;
 
@@ -46,7 +45,8 @@ public class ColorController {
     }
 
     @GetMapping("/{identifier}")
-    public ResponseEntity<ColorDto> getColorByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
+    public ResponseEntity<ColorDto> getColorByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR)
+                                                             String identifier) {
         // Helper uses cached service DTO method
         ColorDto colorDto = findColorDtoByIdentifier(identifier);
         return ResponseEntity.ok(colorDto);
@@ -55,11 +55,11 @@ public class ColorController {
     @PutMapping("/{identifier}")
     public ResponseEntity<Color> updateColor(@PathVariable(IDENTIFIER_PATH_VAR) String identifier,
                                              @RequestParam(NAME_REQ_PARAM) String newName) {
-        // Find original first (not cached) to get ID if identifier is name
         Color color = colorService.findColors(identifier).stream().findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                ErrorMessages.COLOR, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                        String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                StringConstants.COLOR, StringConstants.WITH_NAME, identifier,
+                                StringConstants.NOT_FOUND_MESSAGE)));
 
         // Service method handles cache update
         Color updatedColor = colorService.updateColor(color.getId(), newName);
@@ -79,13 +79,15 @@ public class ColorController {
     }
 
     @GetMapping("/query")
-    public ResponseEntity<List<ColorDto>> getColorsByQuery(@RequestParam(required = false, value = NAME_REQ_PARAM)
+    public ResponseEntity<List<ColorDto>> getColorsByQuery(@RequestParam(required = false,
+            value = NAME_REQ_PARAM)
                                                            String name) {
         // Service method (fuzzy) not cached
         List<ColorDto> colors = colorService.findColorDtos(name);
         if (colors.isEmpty()) {
             throw new ResourceNotFoundException(
-                    String.format(ErrorMessages.QUERY_NO_RESULTS, "colors", (name != null ? name : "<all>")));
+                    String.format(StringConstants.QUERY_NO_RESULTS, "colors",
+                            (name != null ? name : "<all>")));
         }
         return ResponseEntity.ok(colors);
     }
@@ -97,8 +99,9 @@ public class ColorController {
             // findColorDtoById uses cache
             return colorService.findColorDtoById(colorId)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    ErrorMessages.COLOR, ErrorMessages.WITH_ID, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    StringConstants.COLOR, StringConstants.WITH_ID, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
             // findColorDtos (fuzzy) is not cached, filter locally
             List<ColorDto> colors = colorService.findColorDtos(identifier); // Not cached
@@ -106,8 +109,9 @@ public class ColorController {
                     .filter(dto -> dto.name().equalsIgnoreCase(identifier))
                     .findFirst()
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            String.format(ErrorMessages.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    ErrorMessages.COLOR, ErrorMessages.WITH_NAME, identifier, ErrorMessages.NOT_FOUND_MESSAGE)));
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    StringConstants.COLOR, StringConstants.WITH_NAME, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
         }
     }
 }
