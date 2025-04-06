@@ -1,8 +1,15 @@
+// file: src/main/java/sovok/mcbuildlibrary/controller/ThemeController.java
 package sovok.mcbuildlibrary.controller;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException; // Import
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,17 +19,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import sovok.mcbuildlibrary.dto.ThemeDto;
-import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+// Removed import for ResourceNotFoundException
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Theme;
 import sovok.mcbuildlibrary.service.ThemeService;
 
 @RestController
 @RequestMapping("/themes")
+@Validated
 public class ThemeController {
-
-    private static final String IDENTIFIER_PATH_VAR = "identifier";
-    private static final String NAME_REQ_PARAM = "name";
 
     private final ThemeService themeService;
 
@@ -31,44 +36,52 @@ public class ThemeController {
     }
 
     @PostMapping
-    public ResponseEntity<Theme> createTheme(@RequestParam(NAME_REQ_PARAM) String name) {
-        // Service method handles cache insert
+    public ResponseEntity<Theme> createTheme(
+            @RequestParam(StringConstants.NAME_REQ_PARAM)
+            @NotBlank(message = StringConstants.NAME_NOT_BLANK)
+            @Size(min = 2, message = StringConstants.NAME_SIZE)
+            String name) {
+        // Service throws IllegalArgumentException if duplicate
         Theme theme = themeService.createTheme(name);
         return new ResponseEntity<>(theme, HttpStatus.CREATED);
     }
 
     @GetMapping
     public ResponseEntity<List<ThemeDto>> getAllThemes() {
-        // Service method handles cache and initial not found
         List<ThemeDto> themes = themeService.findAllThemeDtos();
         return ResponseEntity.ok(themes);
     }
 
     @GetMapping("/{identifier}")
-    public ResponseEntity<ThemeDto> getThemeByIdentifier(@PathVariable(IDENTIFIER_PATH_VAR)
-                                                             String identifier) {
-        // Helper uses cached service DTO method
+    public ResponseEntity<ThemeDto> getThemeByIdentifier(
+            @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier) {
+        // Helper throws NoSuchElementException
         ThemeDto themeDto = findThemeDtoByIdentifier(identifier);
         return ResponseEntity.ok(themeDto);
     }
 
     @PutMapping("/{identifier}")
-    public ResponseEntity<Theme> updateTheme(@PathVariable(IDENTIFIER_PATH_VAR) String identifier,
-                                             @RequestParam(NAME_REQ_PARAM) String newName) {
+    public ResponseEntity<Theme> updateTheme(
+            @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier,
+            @RequestParam(StringConstants.NAME_REQ_PARAM)
+            @NotBlank(message = StringConstants.NAME_NOT_BLANK)
+            @Size(min = 2, message = StringConstants.NAME_SIZE)
+            String newName) {
+        // Service handles not found / duplicate checks
         Theme theme = themeService.findThemes(identifier).stream().findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException(
+                .orElseThrow(() -> new NoSuchElementException( // Changed from ResourceNotFoundException
                         String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                                 StringConstants.THEME, StringConstants.WITH_NAME, identifier,
                                 StringConstants.NOT_FOUND_MESSAGE)));
 
-        // Service method handles cache update
         Theme updatedTheme = themeService.updateTheme(theme.getId(), newName);
         return ResponseEntity.ok(updatedTheme);
     }
 
     @DeleteMapping("/{identifier}")
-    public ResponseEntity<Void> deleteTheme(@PathVariable(IDENTIFIER_PATH_VAR) String identifier) {
-        // Service methods handle cache eviction
+    public ResponseEntity<Void> deleteTheme(
+            @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier) {
+        // Service handles not found / conflict checks
         try {
             Long themeId = Long.valueOf(identifier);
             themeService.deleteTheme(themeId);
@@ -79,36 +92,44 @@ public class ThemeController {
     }
 
     @GetMapping("/query")
-    public ResponseEntity<List<ThemeDto>> getThemesByQuery(@RequestParam(required = false,
-            value = NAME_REQ_PARAM)
-                                                           String name) {
-        // Service method (fuzzy) not cached
+    public ResponseEntity<List<ThemeDto>> getThemesByQuery(
+            @RequestParam Map<String, String> allParams) {
+
+        validateQueryParameters(allParams, StringConstants.ALLOWED_SIMPLE_QUERY_PARAMS);
+        String name = allParams.get(StringConstants.NAME_REQ_PARAM);
+
         List<ThemeDto> themes = themeService.findThemeDtos(name);
-        if (themes.isEmpty()) {
-            throw new ResourceNotFoundException(
-                    String.format(StringConstants.QUERY_NO_RESULTS, "themes",
-                            (name != null ? name : "<all>")));
-        }
+        // Return 200 OK with empty list if no results
         return ResponseEntity.ok(themes);
     }
 
-    // Helper uses cached DTO find methods from service
+    private void validateQueryParameters(Map<String, String> receivedParams, Set<String> allowedParams) {
+        for (String paramName : receivedParams.keySet()) {
+            if (!allowedParams.contains(paramName)) {
+                // Throw IllegalArgumentException for invalid query parameter
+                throw new IllegalArgumentException(
+                        String.format(StringConstants.INVALID_QUERY_PARAMETER_DETECTED,
+                                paramName,
+                                String.join(", ", allowedParams.stream().sorted().toList()))
+                );
+            }
+        }
+    }
+
     private ThemeDto findThemeDtoByIdentifier(String identifier) {
         try {
             Long themeId = Long.valueOf(identifier);
-            // findThemeDtoById uses cache
             return themeService.findThemeDtoById(themeId)
-                    .orElseThrow(() -> new ResourceNotFoundException(
+                    .orElseThrow(() -> new NoSuchElementException( // Changed from ResourceNotFoundException
                             String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                                     StringConstants.THEME, StringConstants.WITH_ID, identifier,
                                     StringConstants.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
-            // findThemeDtos (fuzzy) is not cached, filter locally
-            List<ThemeDto> themes = themeService.findThemeDtos(identifier); // Not cached
+            List<ThemeDto> themes = themeService.findThemeDtos(identifier);
             return themes.stream()
                     .filter(dto -> dto.name().equalsIgnoreCase(identifier))
                     .findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException(
+                    .orElseThrow(() -> new NoSuchElementException( // Changed from ResourceNotFoundException
                             String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                                     StringConstants.THEME, StringConstants.WITH_NAME, identifier,
                                     StringConstants.NOT_FOUND_MESSAGE)));

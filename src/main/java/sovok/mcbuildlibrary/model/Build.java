@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/model/Build.java
 package sovok.mcbuildlibrary.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -14,7 +15,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank; // Import
+import jakarta.validation.constraints.NotEmpty; // Import for collections
+import jakarta.validation.constraints.NotNull; // Import for objects
+import jakarta.validation.constraints.Size;     // Import
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,6 +27,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CascadeType;
+import sovok.mcbuildlibrary.exception.StringConstants; // Import
 
 @Entity
 @Data
@@ -34,10 +39,13 @@ public class Build {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Name is mandatory")
-    @Column(unique = true)
+    @NotBlank(message = StringConstants.NAME_NOT_BLANK)
+    // Remove max = 100, keep min = 3 if desired
+    @Size(min = 3, message = StringConstants.NAME_SIZE)
+    @Column(unique = true, nullable = false)
     private String name;
 
+    @NotEmpty(message = "At least one author is required")
     @ManyToMany
     @JoinTable(
             name = "build_authors",
@@ -47,6 +55,7 @@ public class Build {
     @org.hibernate.annotations.Cascade(CascadeType.PERSIST)
     private Set<Author> authors = new HashSet<>();
 
+    @NotEmpty(message = "At least one theme is required")
     @ManyToMany
     @JoinTable(
             name = "build_themes",
@@ -56,8 +65,11 @@ public class Build {
     @org.hibernate.annotations.Cascade(CascadeType.PERSIST)
     private Set<Theme> themes = new HashSet<>();
 
+    // Remove max = 500 from description
+    @Size(message = "Description cannot exceed {max} characters") // Keep message generic if needed, but remove max
     private String description;
 
+    @NotEmpty(message = "At least one color is required")
     @ManyToMany
     @JoinTable(
             name = "build_colors",
@@ -71,10 +83,11 @@ public class Build {
     @CollectionTable(name = "screenshots", joinColumns = @JoinColumn(name = "build_id"))
     @Column(name = "screenshot")
     @org.hibernate.annotations.Cascade(CascadeType.ALL)
+    @Size(max = 10, message = "Maximum of 10 screenshots allowed") // This is usually fine as it doesn't alter a core column type
     private List<String> screenshots;
 
     @Lob
-    @Basic(fetch = FetchType.LAZY) // Add lazy loading
+    @Basic(fetch = FetchType.LAZY)
     @JsonIgnore
     private byte[] schemFile;
 }

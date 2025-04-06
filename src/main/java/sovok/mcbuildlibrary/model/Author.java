@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/model/Author.java
 package sovok.mcbuildlibrary.model;
 
 import jakarta.persistence.Column;
@@ -5,11 +6,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank; // Import
+import jakarta.validation.constraints.Size;     // Import
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import sovok.mcbuildlibrary.exception.StringConstants; // Import
 
 @Entity
 @Data
@@ -21,7 +24,9 @@ public class Author {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Name is mandatory")
-    @Column(unique = true)
+    @NotBlank(message = StringConstants.NAME_NOT_BLANK)
+    // Remove max = 50, keep min = 2 if desired for validation
+    @Size(min = 2, message = StringConstants.NAME_SIZE)
+    @Column(unique = true, nullable = false)
     private String name;
 }

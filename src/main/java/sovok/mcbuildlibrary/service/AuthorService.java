@@ -1,7 +1,9 @@
+// file: src/main/java/sovok/mcbuildlibrary/service/AuthorService.java
 package sovok.mcbuildlibrary.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException; // Import
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,8 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
 import sovok.mcbuildlibrary.dto.AuthorDto;
 import sovok.mcbuildlibrary.dto.RelatedBuildDto;
-import sovok.mcbuildlibrary.exception.EntityInUseException;
-import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.model.Build;
@@ -29,16 +29,13 @@ public class AuthorService {
     private final InMemoryCache cache;
 
 
-
     public AuthorService(AuthorRepository authorRepository, BuildRepository buildRepository,
                          InMemoryCache cache) {
         this.authorRepository = authorRepository;
         this.buildRepository = buildRepository;
         this.cache = cache;
-        // Note: 'self' will be injected via setter after construction
     }
 
-    // ... (convertToDto, findOrCreateAuthor, createAuthor remain the same) ...
     private AuthorDto convertToDto(Author author) {
         List<BuildRepository.BuildIdAndName> relatedBuildsInfo = buildRepository
                 .findBuildIdAndNameByAuthorId(author.getId());
@@ -54,7 +51,6 @@ public class AuthorService {
                 .orElseGet(() -> {
                     logger.info("Author '{}' not found, creating new.", name);
                     Author newAuthor = Author.builder().name(name).build();
-                    // Don't cache findOrCreate results directly, rely on CUD operations caching
                     return authorRepository.save(newAuthor);
                 });
     }
@@ -63,7 +59,8 @@ public class AuthorService {
     public Author createAuthor(String name) {
         Optional<Author> existingAuthor = authorRepository.findByName(name);
         if (existingAuthor.isPresent()) {
-            throw new EntityInUseException(String.format(
+            // Throw IllegalArgumentException for duplicate name conflict (400 Bad Request candidate)
+            throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
                     StringConstants.ALREADY_EXISTS_MESSAGE));
@@ -72,11 +69,9 @@ public class AuthorService {
         Author savedAuthor = authorRepository.save(author);
         logger.info("Created Author with ID: {}", savedAuthor.getId());
 
-        // --- Cache Invalidation/Update ---
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedAuthor.getId()), savedAuthor);
         cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
-        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE); // Invalidate query caches
-        // --- End Cache Invalidation/Update ---
+        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
         return savedAuthor;
     }
@@ -103,10 +98,11 @@ public class AuthorService {
         }
 
         List<Author> authors = authorRepository.findAll();
-        if (authors.isEmpty()) {
-            throw new ResourceNotFoundException(String.format(
-                    StringConstants.NO_ENTITIES_AVAILABLE, "authors"));
-        }
+        // Return empty list, don't throw exception here
+        // if (authors.isEmpty()) {
+        //     throw new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+        //             StringConstants.NO_ENTITIES_AVAILABLE, StringConstants.AUTHORS));
+        // }
         cache.put(cacheKey, authors);
         return authors.stream().map(this::convertToDto).toList();
     }
@@ -134,16 +130,16 @@ public class AuthorService {
 
     @Transactional
     public Author updateAuthor(Long id, String newName) {
-        // Find by ID is read-only, direct repo call is fine within this @Transactional
         Author author = authorRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
 
         Optional<Author> authorWithSameName = authorRepository.findByName(newName);
         if (authorWithSameName.isPresent() && !authorWithSameName.get().getId().equals(id)) {
-            throw new EntityInUseException(String.format(
+            // Throw IllegalArgumentException for duplicate name conflict
+            throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, newName,
                     StringConstants.ALREADY_EXISTS_MESSAGE));
@@ -153,7 +149,6 @@ public class AuthorService {
         Author updatedAuthor = authorRepository.save(author);
         logger.info("Updated Author with ID: {}", updatedAuthor.getId());
 
-        // Cache updates
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, updatedAuthor.getId()),
                 updatedAuthor);
         cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
@@ -162,13 +157,11 @@ public class AuthorService {
         return updatedAuthor;
     }
 
-    // No @Transactional needed here - called by public @Transactional methods
     private void deleteAuthorInternal(Author author) {
         List<Build> builds = buildRepository.findBuildsByAuthorId(author.getId());
         boolean buildCacheInvalidated = false;
 
         for (Build build : builds) {
-
             buildCacheInvalidated = true;
             if (build.getAuthors().size() == 1 && build.getAuthors().contains(author)) {
                 logger.warn("Deleting Build ID {} as its last author {} (ID {}) is being deleted.",
@@ -187,39 +180,33 @@ public class AuthorService {
         authorRepository.delete(author);
         logger.info("Deleted Author with ID: {}", authorId);
 
-        // Cache invalidation (Author)
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, authorId));
         cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
-        // Cache invalidation (Build - if affected)
         if (buildCacheInvalidated) {
             cache.evict(InMemoryCache.generateGetAllKey(StringConstants.BUILD));
             cache.evictQueryCacheByType(StringConstants.BUILD);
         }
     }
 
-    // This method starts the transaction
-    @Transactional // Line 213 approx
+    @Transactional
     public void deleteAuthor(Long id) {
         Author author = authorRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
-        // Call internal method directly - transaction already started
-        deleteAuthorInternal(author); // Line 215 -> No 'this.' needed, just call directly
+        deleteAuthorInternal(author);
     }
 
-    // This method starts the transaction
-    @Transactional // Line 223 approx
+    @Transactional
     public void deleteAuthorByName(String name) {
         Author author = authorRepository.findByName(name)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
                         StringConstants.NOT_FOUND_MESSAGE)));
-        // Call internal method directly - transaction already started
-        deleteAuthorInternal(author); // Line 225 -> No 'this.' needed, just call directly
+        deleteAuthorInternal(author);
     }
 }

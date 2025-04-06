@@ -1,7 +1,9 @@
+// file: src/main/java/sovok/mcbuildlibrary/service/ColorService.java
 package sovok.mcbuildlibrary.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException; // Import
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,8 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
 import sovok.mcbuildlibrary.dto.ColorDto;
 import sovok.mcbuildlibrary.dto.RelatedBuildDto;
-import sovok.mcbuildlibrary.exception.EntityInUseException;
-import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+// Removed import for EntityInUseException
+// Removed import for ResourceNotFoundException
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.model.Color;
@@ -60,7 +62,8 @@ public class ColorService {
     public Color createColor(String name) {
         Optional<Color> existingColor = colorRepository.findByName(name);
         if (existingColor.isPresent()) {
-            throw new EntityInUseException(String.format(
+            // Throw IllegalArgumentException for duplicate name conflict
+            throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
                     StringConstants.ALREADY_EXISTS_MESSAGE));
@@ -98,10 +101,10 @@ public class ColorService {
         }
 
         List<Color> colors = colorRepository.findAll();
-        if (colors.isEmpty()) {
-            throw new ResourceNotFoundException(String.format(StringConstants.NO_ENTITIES_AVAILABLE,
-            "colors"));
-        }
+        // if (colors.isEmpty()) {
+        //     throw new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+        //             StringConstants.NO_ENTITIES_AVAILABLE, StringConstants.COLORS));
+        // }
         cache.put(cacheKey, colors);
         return colors.stream().map(this::convertToDto).toList();
     }
@@ -130,14 +133,15 @@ public class ColorService {
     @Transactional
     public Color updateColor(Long id, String newName) {
         Color color = colorRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
+                .orElseThrow(() -> new NoSuchElementException( // Changed from ResourceNotFoundException
                         String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
-                        CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
-                        StringConstants.NOT_FOUND_MESSAGE)));
+                                CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
+                                StringConstants.NOT_FOUND_MESSAGE)));
 
         Optional<Color> colorWithSameName = colorRepository.findByName(newName);
         if (colorWithSameName.isPresent() && !colorWithSameName.get().getId().equals(id)) {
-            throw new EntityInUseException(String.format(
+            // Throw IllegalArgumentException for duplicate name conflict
+            throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, newName,
                     StringConstants.ALREADY_EXISTS_MESSAGE));
@@ -154,12 +158,11 @@ public class ColorService {
         return updatedColor;
     }
 
-    // Removed @Transactional here (Line 161 approx was likely here)
     private void deleteColorInternal(Color color) {
         List<Build> buildsWithColor = buildRepository.findBuildsByColorId(color.getId());
         if (!buildsWithColor.isEmpty()) {
-            // Cannot delete if associated, maybe detach builds instead? For now, throw.
-            throw new EntityInUseException(String.format(StringConstants.CANNOT_DELETE_ASSOCIATED,
+            // Throw IllegalStateException for deletion conflict (409 Conflict candidate)
+            throw new IllegalStateException(String.format(StringConstants.CANNOT_DELETE_ASSOCIATED,
                     CACHE_ENTITY_TYPE, color.getName(), buildsWithColor.size()));
         }
 
@@ -167,29 +170,28 @@ public class ColorService {
         colorRepository.delete(color);
         logger.info("Deleted Color with ID: {}", colorId);
 
-        // Cache invalidation (Color)
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, colorId));
         cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
     }
 
-    @Transactional // Line 180 approx
+    @Transactional
     public void deleteColor(Long id) {
         Color color = colorRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
-        deleteColorInternal(color); // Line 183: Direct call
+        deleteColorInternal(color);
     }
 
-    @Transactional // Line 188 approx
+    @Transactional
     public void deleteColorByName(String name) {
         Color color = colorRepository.findByName(name)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
                         StringConstants.NOT_FOUND_MESSAGE)));
-        deleteColorInternal(color); // Line 191: Direct call
+        deleteColorInternal(color);
     }
 }

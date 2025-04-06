@@ -1,7 +1,9 @@
+// file: src/main/java/sovok/mcbuildlibrary/service/ThemeService.java
 package sovok.mcbuildlibrary.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException; // Import
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,8 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
 import sovok.mcbuildlibrary.dto.RelatedBuildDto;
 import sovok.mcbuildlibrary.dto.ThemeDto;
-import sovok.mcbuildlibrary.exception.EntityInUseException;
-import sovok.mcbuildlibrary.exception.ResourceNotFoundException;
+// Removed import for EntityInUseException
+// Removed import for ResourceNotFoundException
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.model.Theme;
@@ -27,8 +29,6 @@ public class ThemeService {
     private final ThemeRepository themeRepository;
     private final BuildRepository buildRepository;
     private final InMemoryCache cache;
-
-
 
     public ThemeService(ThemeRepository themeRepository, BuildRepository buildRepository,
                         InMemoryCache cache) {
@@ -60,7 +60,8 @@ public class ThemeService {
     public Theme createTheme(String name) {
         Optional<Theme> existingTheme = themeRepository.findByName(name);
         if (existingTheme.isPresent()) {
-            throw new EntityInUseException(String.format(
+            // Throw IllegalArgumentException for duplicate name conflict
+            throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE,
                     StringConstants.WITH_NAME, name, StringConstants.ALREADY_EXISTS_MESSAGE));
@@ -98,10 +99,10 @@ public class ThemeService {
         }
 
         List<Theme> themes = themeRepository.findAll();
-        if (themes.isEmpty()) {
-            throw new ResourceNotFoundException(String.format(StringConstants.NO_ENTITIES_AVAILABLE,
-                    "themes"));
-        }
+        // if (themes.isEmpty()) {
+        //     throw new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+        //             StringConstants.NO_ENTITIES_AVAILABLE, StringConstants.THEMES));
+        // }
         cache.put(cacheKey, themes);
         return themes.stream().map(this::convertToDto).toList();
     }
@@ -130,14 +131,15 @@ public class ThemeService {
     @Transactional
     public Theme updateTheme(Long id, String newName) {
         Theme theme = themeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
 
         Optional<Theme> themeWithSameName = themeRepository.findByName(newName);
         if (themeWithSameName.isPresent() && !themeWithSameName.get().getId().equals(id)) {
-            throw new EntityInUseException(String.format(
+            // Throw IllegalArgumentException for duplicate name conflict
+            throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, newName,
                     StringConstants.ALREADY_EXISTS_MESSAGE));
@@ -154,43 +156,40 @@ public class ThemeService {
         return updatedTheme;
     }
 
-
-    // Removed @Transactional here (Line 160 approx was likely here)
     private void deleteThemeInternal(Theme theme) {
         List<Build> buildsWithTheme = buildRepository.findBuildsByThemeId(theme.getId());
         if (!buildsWithTheme.isEmpty()) {
-            throw new EntityInUseException(String.format(StringConstants.CANNOT_DELETE_ASSOCIATED,
+            // Throw IllegalStateException for deletion conflict
+            throw new IllegalStateException(String.format(StringConstants.CANNOT_DELETE_ASSOCIATED,
                     CACHE_ENTITY_TYPE, theme.getName(), buildsWithTheme.size()));
-            // OR: Detach logic (similar to ColorService)
         }
 
         Long themeId = theme.getId();
         themeRepository.delete(theme);
         logger.info("Deleted Theme with ID: {}", themeId);
 
-        // Cache invalidation (Theme)
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, themeId));
         cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
     }
 
-    @Transactional // Line 179 approx
+    @Transactional
     public void deleteTheme(Long id) {
         Theme theme = themeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
-        deleteThemeInternal(theme); // Line 182: Direct call
+        deleteThemeInternal(theme);
     }
 
-    @Transactional // Line 187 approx
+    @Transactional
     public void deleteThemeByName(String name) {
         Theme theme = themeRepository.findByName(name)
-                .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
                         StringConstants.NOT_FOUND_MESSAGE)));
-        deleteThemeInternal(theme); // Line 190: Direct call
+        deleteThemeInternal(theme);
     }
 }
