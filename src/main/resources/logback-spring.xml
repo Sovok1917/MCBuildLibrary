@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Include Spring Boot's base configuration -->
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+
+    <!-- Define properties -->
+    <property name="LOGS_PATH" value="./logs"/> <!-- Log directory relative to running dir -->
+    <property name="LOG_ARCHIVE" value="${LOGS_PATH}/archive"/> <!-- Archive directory -->
+    <property name="APP_NAME" value="mcbuildlibrary"/> <!-- Your application name -->
+
+    <!-- Appender for Daily Rolling File -->
+    <appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOGS_PATH}/${APP_NAME}.log</file> <!-- Current log file -->
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>${LOG_ARCHIVE}/${APP_NAME}-%d{yyyy-MM-dd}.log</fileNamePattern>
+
+            <!-- keep 30 days' worth of history -->
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap> <!-- Total size cap for archived logs -->
+        </rollingPolicy>
+
+        <encoder>
+            <!-- Standard Spring Boot log format -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Appender for logging errors separately (Optional but good practice) -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOGS_PATH}/${APP_NAME}-error.log</file>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_ARCHIVE}/${APP_NAME}-error-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n%ex{full}</pattern> <!-- Include stack trace for errors -->
+        </encoder>
+    </appender>
+
+
+    <!-- LOG everything at INFO level -->
+    <root level="INFO">
+        <!-- Output to console (from base.xml) -->
+        <appender-ref ref="CONSOLE"/>
+        <!-- Output to the rolling file -->
+        <appender-ref ref="ROLLING_FILE"/>
+        <!-- Output errors to the error file -->
+        <appender-ref ref="ERROR_FILE"/>
+    </root>
+
+    <!-- You can set specific log levels for your packages -->
+    <logger name="sovok.mcbuildlibrary" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ROLLING_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
+    </logger>
+
+    <!-- Example: Quieter logging for noisy libraries -->
+    <!-- <logger name="org.hibernate" level="WARN"/> -->
+    <!-- <logger name="org.springframework.web" level="WARN"/> -->
+
+</configuration>
