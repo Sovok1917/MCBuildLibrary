@@ -1,9 +1,8 @@
-// file: src/main/java/sovok/mcbuildlibrary/service/ColorService.java
 package sovok.mcbuildlibrary.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException; // Import
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,8 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
 import sovok.mcbuildlibrary.dto.ColorDto;
 import sovok.mcbuildlibrary.dto.RelatedBuildDto;
-// Removed import for EntityInUseException
-// Removed import for ResourceNotFoundException
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.model.Color;
@@ -62,7 +59,6 @@ public class ColorService {
     public Color createColor(String name) {
         Optional<Color> existingColor = colorRepository.findByName(name);
         if (existingColor.isPresent()) {
-            // Throw IllegalArgumentException for duplicate name conflict
             throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
@@ -73,7 +69,6 @@ public class ColorService {
         logger.info("Created Color with ID: {}", savedColor.getId());
 
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedColor.getId()), savedColor);
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
         return savedColor;
@@ -88,29 +83,21 @@ public class ColorService {
         }
 
         Optional<Color> colorOpt = colorRepository.findById(id);
-        colorOpt.ifPresent(color -> cache.put(cacheKey, color));
+        colorOpt.ifPresent(color -> cache.put(cacheKey, color)); // Cache individual item
         return colorOpt.map(this::convertToDto);
     }
 
     @Transactional(readOnly = true)
     public List<ColorDto> findAllColorDtos() {
-        String cacheKey = InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE);
-        Optional<List<Color>> cachedColors = cache.get(cacheKey);
-        if (cachedColors.isPresent()) {
-            return cachedColors.get().stream().map(this::convertToDto).toList();
-        }
-
+        // REMOVED: Cache check and put for getAll
+        logger.debug("Fetching all colors from repository (getAll cache disabled).");
         List<Color> colors = colorRepository.findAll();
-        // if (colors.isEmpty()) {
-        //     throw new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
-        //             StringConstants.NO_ENTITIES_AVAILABLE, StringConstants.COLORS));
-        // }
-        cache.put(cacheKey, colors);
         return colors.stream().map(this::convertToDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<ColorDto> findColorDtos(String name) {
+        // Query caching remains
         Map<String, Object> params = Map.of("name", name);
         String queryKey = InMemoryCache.generateQueryKey(CACHE_ENTITY_TYPE, params);
         Optional<List<Color>> cachedResult = cache.get(queryKey);
@@ -133,14 +120,13 @@ public class ColorService {
     @Transactional
     public Color updateColor(Long id, String newName) {
         Color color = colorRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(
                         String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                                 CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                                 StringConstants.NOT_FOUND_MESSAGE)));
 
         Optional<Color> colorWithSameName = colorRepository.findByName(newName);
         if (colorWithSameName.isPresent() && !colorWithSameName.get().getId().equals(id)) {
-            // Throw IllegalArgumentException for duplicate name conflict
             throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, newName,
@@ -152,7 +138,6 @@ public class ColorService {
         logger.info("Updated Color with ID: {}", updatedColor.getId());
 
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, updatedColor.getId()), updatedColor);
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
         return updatedColor;
@@ -161,7 +146,6 @@ public class ColorService {
     private void deleteColorInternal(Color color) {
         List<Build> buildsWithColor = buildRepository.findBuildsByColorId(color.getId());
         if (!buildsWithColor.isEmpty()) {
-            // Throw IllegalStateException for deletion conflict (409 Conflict candidate)
             throw new IllegalStateException(String.format(StringConstants.CANNOT_DELETE_ASSOCIATED,
                     CACHE_ENTITY_TYPE, color.getName(), buildsWithColor.size()));
         }
@@ -171,14 +155,13 @@ public class ColorService {
         logger.info("Deleted Color with ID: {}", colorId);
 
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, colorId));
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
     }
 
     @Transactional
     public void deleteColor(Long id) {
         Color color = colorRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
@@ -188,7 +171,7 @@ public class ColorService {
     @Transactional
     public void deleteColorByName(String name) {
         Color color = colorRepository.findByName(name)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
                         StringConstants.NOT_FOUND_MESSAGE)));

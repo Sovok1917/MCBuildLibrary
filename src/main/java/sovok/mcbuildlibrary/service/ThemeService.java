@@ -1,9 +1,8 @@
-// file: src/main/java/sovok/mcbuildlibrary/service/ThemeService.java
 package sovok.mcbuildlibrary.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException; // Import
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,8 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
 import sovok.mcbuildlibrary.dto.RelatedBuildDto;
 import sovok.mcbuildlibrary.dto.ThemeDto;
-// Removed import for EntityInUseException
-// Removed import for ResourceNotFoundException
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.model.Theme;
@@ -60,7 +57,6 @@ public class ThemeService {
     public Theme createTheme(String name) {
         Optional<Theme> existingTheme = themeRepository.findByName(name);
         if (existingTheme.isPresent()) {
-            // Throw IllegalArgumentException for duplicate name conflict
             throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE,
@@ -71,7 +67,6 @@ public class ThemeService {
         logger.info("Created Theme with ID: {}", savedTheme.getId());
 
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedTheme.getId()), savedTheme);
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
         return savedTheme;
@@ -86,29 +81,21 @@ public class ThemeService {
         }
 
         Optional<Theme> themeOpt = themeRepository.findById(id);
-        themeOpt.ifPresent(theme -> cache.put(cacheKey, theme));
+        themeOpt.ifPresent(theme -> cache.put(cacheKey, theme)); // Cache individual item
         return themeOpt.map(this::convertToDto);
     }
 
     @Transactional(readOnly = true)
     public List<ThemeDto> findAllThemeDtos() {
-        String cacheKey = InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE);
-        Optional<List<Theme>> cachedThemes = cache.get(cacheKey);
-        if (cachedThemes.isPresent()) {
-            return cachedThemes.get().stream().map(this::convertToDto).toList();
-        }
-
+        // REMOVED: Cache check and put for getAll
+        logger.debug("Fetching all themes from repository (getAll cache disabled).");
         List<Theme> themes = themeRepository.findAll();
-        // if (themes.isEmpty()) {
-        //     throw new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
-        //             StringConstants.NO_ENTITIES_AVAILABLE, StringConstants.THEMES));
-        // }
-        cache.put(cacheKey, themes);
         return themes.stream().map(this::convertToDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<ThemeDto> findThemeDtos(String name) {
+        // Query caching remains
         Map<String, Object> params = Map.of("name", name);
         String queryKey = InMemoryCache.generateQueryKey(CACHE_ENTITY_TYPE, params);
 
@@ -131,14 +118,13 @@ public class ThemeService {
     @Transactional
     public Theme updateTheme(Long id, String newName) {
         Theme theme = themeRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
 
         Optional<Theme> themeWithSameName = themeRepository.findByName(newName);
         if (themeWithSameName.isPresent() && !themeWithSameName.get().getId().equals(id)) {
-            // Throw IllegalArgumentException for duplicate name conflict
             throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, newName,
@@ -150,7 +136,6 @@ public class ThemeService {
         logger.info("Updated Theme with ID: {}", updatedTheme.getId());
 
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, updatedTheme.getId()), updatedTheme);
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
         return updatedTheme;
@@ -159,7 +144,6 @@ public class ThemeService {
     private void deleteThemeInternal(Theme theme) {
         List<Build> buildsWithTheme = buildRepository.findBuildsByThemeId(theme.getId());
         if (!buildsWithTheme.isEmpty()) {
-            // Throw IllegalStateException for deletion conflict
             throw new IllegalStateException(String.format(StringConstants.CANNOT_DELETE_ASSOCIATED,
                     CACHE_ENTITY_TYPE, theme.getName(), buildsWithTheme.size()));
         }
@@ -169,14 +153,13 @@ public class ThemeService {
         logger.info("Deleted Theme with ID: {}", themeId);
 
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, themeId));
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
     }
 
     @Transactional
     public void deleteTheme(Long id) {
         Theme theme = themeRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
@@ -186,7 +169,7 @@ public class ThemeService {
     @Transactional
     public void deleteThemeByName(String name) {
         Theme theme = themeRepository.findByName(name)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
                         StringConstants.NOT_FOUND_MESSAGE)));

@@ -1,10 +1,9 @@
-// file: src/main/java/sovok/mcbuildlibrary/service/BuildService.java
 package sovok.mcbuildlibrary.service;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException; // Import
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +12,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
-// Removed import for EntityInUseException
-// Removed import for ResourceNotFoundException
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.repository.BuildRepository;
@@ -44,7 +41,6 @@ public class BuildService {
     public Build createBuild(Build build) {
         Optional<Build> existingBuild = buildRepository.findByName(build.getName());
         if (existingBuild.isPresent()) {
-            // Throw IllegalArgumentException for duplicate name conflict
             throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, build.getName(),
@@ -54,9 +50,9 @@ public class BuildService {
         Build savedBuild = buildRepository.save(build);
         logger.info("Created Build with ID: {}", savedBuild.getId());
 
+        // Cache individual build by ID and Name
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId()), savedBuild);
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getName()), savedBuild);
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
         return savedBuild;
@@ -64,6 +60,7 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public Optional<Build> findBuildById(Long id) {
+        // Individual item caching remains
         String cacheKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, id);
         Optional<Build> cachedBuild = cache.get(cacheKey);
         if (cachedBuild.isPresent()) {
@@ -77,6 +74,7 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public Optional<Build> findByName(String name) {
+        // Individual item caching by name remains
         String cacheKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, name);
         Optional<Build> cachedBuild = cache.get(cacheKey);
         if (cachedBuild.isPresent()) {
@@ -94,19 +92,14 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public List<Build> findAll() {
-        String cacheKey = InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE);
-        Optional<List<Build>> cachedBuilds = cache.get(cacheKey);
-        if (cachedBuilds.isPresent()) {
-            return cachedBuilds.get();
-        }
-
-        List<Build> builds = buildRepository.findAll();
-        cache.put(cacheKey, builds);
-        return builds;
+        // REMOVED: Cache check and put for getAll
+        logger.debug("Fetching all builds from repository (getAll cache disabled).");
+        return buildRepository.findAll();
     }
 
     @Transactional(readOnly = true)
     public List<Build> filterBuilds(String author, String name, String theme, String color) {
+        // Query caching remains
         Map<String, Object> params = new HashMap<>();
         params.put("author", author);
         params.put("name", name);
@@ -127,22 +120,23 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public Optional<byte[]> getSchemFile(Long id) {
+        // Relies on findBuildById which still uses cache
         return self.findBuildById(id)
                 .map(Build::getSchemFile)
-                .filter(schemBytes -> schemBytes != null && schemBytes.length > 0);
+                .filter(schemBytes -> schemBytes.length > 0);
     }
 
     @Transactional
     public Build updateBuild(Long id, Build updatedBuildData) {
+        // Relies on findBuildById which still uses cache
         Build existingBuild = self.findBuildById(id)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
 
         Optional<Build> buildWithSameName = buildRepository.findByName(updatedBuildData.getName());
         if (buildWithSameName.isPresent() && !buildWithSameName.get().getId().equals(id)) {
-            // Throw IllegalArgumentException for duplicate name conflict
             throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, updatedBuildData.getName(),
@@ -152,6 +146,7 @@ public class BuildService {
         String oldName = existingBuild.getName();
         final boolean nameChanged = !oldName.equalsIgnoreCase(updatedBuildData.getName());
 
+        // ... (update fields logic remains) ...
         existingBuild.setName(updatedBuildData.getName());
         existingBuild.setAuthors(updatedBuildData.getAuthors());
         existingBuild.setThemes(updatedBuildData.getThemes());
@@ -162,12 +157,11 @@ public class BuildService {
             existingBuild.setSchemFile(updatedBuildData.getSchemFile());
         }
 
-
         Build savedBuild = buildRepository.save(existingBuild);
         logger.info("Updated Build with ID: {}", savedBuild.getId());
 
+        // Update individual caches
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId()), savedBuild);
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
         String newName = savedBuild.getName();
@@ -177,7 +171,9 @@ public class BuildService {
         } else {
             cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, newName), savedBuild);
         }
+        // Ensure ID cache is also updated
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId()), savedBuild);
+
 
         return savedBuild;
     }
@@ -185,7 +181,7 @@ public class BuildService {
     @Transactional
     public void deleteBuild(Long id) {
         Build build = buildRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
@@ -195,9 +191,9 @@ public class BuildService {
         buildRepository.deleteById(id);
         logger.info("Deleted Build with ID: {}", id);
 
+        // Evict individual caches
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, id));
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, name));
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
     }
 }

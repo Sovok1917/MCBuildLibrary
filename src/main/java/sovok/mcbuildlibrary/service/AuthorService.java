@@ -1,9 +1,8 @@
-// file: src/main/java/sovok/mcbuildlibrary/service/AuthorService.java
 package sovok.mcbuildlibrary.service;
 
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException; // Import
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +58,6 @@ public class AuthorService {
     public Author createAuthor(String name) {
         Optional<Author> existingAuthor = authorRepository.findByName(name);
         if (existingAuthor.isPresent()) {
-            // Throw IllegalArgumentException for duplicate name conflict (400 Bad Request candidate)
             throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
@@ -69,9 +67,9 @@ public class AuthorService {
         Author savedAuthor = authorRepository.save(author);
         logger.info("Created Author with ID: {}", savedAuthor.getId());
 
+        // Cache the created entity by ID (still useful)
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedAuthor.getId()), savedAuthor);
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
-        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
+        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE); // Keep query cache eviction
 
         return savedAuthor;
     }
@@ -85,30 +83,23 @@ public class AuthorService {
         }
 
         Optional<Author> authorOpt = authorRepository.findById(id);
+        // Still cache individual finds by ID
         authorOpt.ifPresent(author -> cache.put(cacheKey, author));
         return authorOpt.map(this::convertToDto);
     }
 
     @Transactional(readOnly = true)
     public List<AuthorDto> findAllAuthorDtos() {
-        String cacheKey = InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE);
-        Optional<List<Author>> cachedAuthors = cache.get(cacheKey);
-        if (cachedAuthors.isPresent()) {
-            return cachedAuthors.get().stream().map(this::convertToDto).toList();
-        }
 
+        logger.debug("Fetching all authors from repository (getAll cache disabled).");
         List<Author> authors = authorRepository.findAll();
-        // Return empty list, don't throw exception here
-        // if (authors.isEmpty()) {
-        //     throw new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
-        //             StringConstants.NO_ENTITIES_AVAILABLE, StringConstants.AUTHORS));
-        // }
-        cache.put(cacheKey, authors);
+
         return authors.stream().map(this::convertToDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<AuthorDto> findAuthorDtos(String name) {
+        // Query caching remains
         Map<String, Object> params = Map.of("name", name);
         String queryKey = InMemoryCache.generateQueryKey(CACHE_ENTITY_TYPE, params);
 
@@ -118,7 +109,7 @@ public class AuthorService {
         }
 
         List<Author> authors = authorRepository.fuzzyFindByName(name);
-        cache.put(queryKey, authors);
+        cache.put(queryKey, authors); // Cache query result
         return authors.stream().map(this::convertToDto).toList();
     }
 
@@ -131,14 +122,13 @@ public class AuthorService {
     @Transactional
     public Author updateAuthor(Long id, String newName) {
         Author author = authorRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
 
         Optional<Author> authorWithSameName = authorRepository.findByName(newName);
         if (authorWithSameName.isPresent() && !authorWithSameName.get().getId().equals(id)) {
-            // Throw IllegalArgumentException for duplicate name conflict
             throw new IllegalArgumentException(String.format(
                     StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
                     CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, newName,
@@ -149,10 +139,10 @@ public class AuthorService {
         Author updatedAuthor = authorRepository.save(author);
         logger.info("Updated Author with ID: {}", updatedAuthor.getId());
 
+        // Update cache for this specific item by ID
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, updatedAuthor.getId()),
                 updatedAuthor);
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
-        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
+        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE); // Keep query cache eviction
 
         return updatedAuthor;
     }
@@ -163,6 +153,7 @@ public class AuthorService {
 
         for (Build build : builds) {
             buildCacheInvalidated = true;
+            // ... (build deletion/update logic remains the same) ...
             if (build.getAuthors().size() == 1 && build.getAuthors().contains(author)) {
                 logger.warn("Deleting Build ID {} as its last author {} (ID {}) is being deleted.",
                         build.getId(), author.getName(), author.getId());
@@ -180,20 +171,20 @@ public class AuthorService {
         authorRepository.delete(author);
         logger.info("Deleted Author with ID: {}", authorId);
 
+        // Evict the deleted author from cache
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, authorId));
-        cache.evict(InMemoryCache.generateGetAllKey(CACHE_ENTITY_TYPE));
-        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
+        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE); // Keep query cache eviction
 
+        // Evict build caches if builds were affected
         if (buildCacheInvalidated) {
-            cache.evict(InMemoryCache.generateGetAllKey(StringConstants.BUILD));
-            cache.evictQueryCacheByType(StringConstants.BUILD);
+            cache.evictQueryCacheByType(StringConstants.BUILD); // Keep build query eviction
         }
     }
 
     @Transactional
     public void deleteAuthor(Long id) {
         Author author = authorRepository.findById(id)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
                         StringConstants.NOT_FOUND_MESSAGE)));
@@ -203,7 +194,7 @@ public class AuthorService {
     @Transactional
     public void deleteAuthorByName(String name) {
         Author author = authorRepository.findByName(name)
-                .orElseThrow(() -> new NoSuchElementException(String.format( // Changed from ResourceNotFoundException
+                .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, name,
                         StringConstants.NOT_FOUND_MESSAGE)));
