@@ -29,6 +29,7 @@ import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.exception.ValidationErrorResponse;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.service.AuthorService;
+import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 @RestController
 @RequestMapping("/authors")
@@ -62,6 +63,7 @@ public class AuthorController {
             @RequestParam(StringConstants.NAME_REQ_PARAM)
             @NotBlank(message = StringConstants.NAME_NOT_BLANK)
             @Size(min = 2, message = StringConstants.NAME_SIZE)
+            @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
             String name) {
         Author author = authorService.createAuthor(name);
         return new ResponseEntity<>(author, HttpStatus.CREATED);
@@ -124,6 +126,7 @@ public class AuthorController {
                     example = "ArchitectAnna")
             @RequestParam(StringConstants.NAME_REQ_PARAM)
             @NotBlank(message = StringConstants.NAME_NOT_BLANK)
+            @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
             @Size(min = 2, message = StringConstants.NAME_SIZE)
             String newName) {
         Author author = authorService.findAuthors(identifier).stream().findFirst()

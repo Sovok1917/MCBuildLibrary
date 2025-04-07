@@ -29,6 +29,7 @@ import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.exception.ValidationErrorResponse;
 import sovok.mcbuildlibrary.model.Theme;
 import sovok.mcbuildlibrary.service.ThemeService;
+import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 @RestController
 @RequestMapping("/themes")
@@ -60,6 +61,7 @@ public class ThemeController {
             @RequestParam(StringConstants.NAME_REQ_PARAM)
             @NotBlank(message = StringConstants.NAME_NOT_BLANK)
             @Size(min = 2, message = StringConstants.NAME_SIZE)
+            @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
             String name) {
         Theme theme = themeService.createTheme(name);
         return new ResponseEntity<>(theme, HttpStatus.CREATED);
@@ -121,6 +123,7 @@ public class ThemeController {
                     example = "Fantasy")
             @RequestParam(StringConstants.NAME_REQ_PARAM)
             @NotBlank(message = StringConstants.NAME_NOT_BLANK)
+            @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
             @Size(min = 2, message = StringConstants.NAME_SIZE)
             String newName) {
         Theme theme = themeService.findThemes(identifier).stream().findFirst()

@@ -29,6 +29,7 @@ import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.exception.ValidationErrorResponse;
 import sovok.mcbuildlibrary.model.Color;
 import sovok.mcbuildlibrary.service.ColorService;
+import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 @RestController
 @RequestMapping("/colors")
@@ -58,6 +59,7 @@ public class ColorController {
     public ResponseEntity<Color> createColor(
             @Parameter(description = "Name of the new color", required = true, example = "DarkOak")
             @RequestParam(StringConstants.NAME_REQ_PARAM)
+            @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
             @NotBlank(message = StringConstants.NAME_NOT_BLANK)
             @Size(min = 2, message = StringConstants.NAME_SIZE)
             String name) {
@@ -122,6 +124,7 @@ public class ColorController {
             @RequestParam(StringConstants.NAME_REQ_PARAM)
             @NotBlank(message = StringConstants.NAME_NOT_BLANK)
             @Size(min = 2, message = StringConstants.NAME_SIZE)
+            @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
             String newName) {
         Color color = colorService.findColors(identifier).stream().findFirst()
                 .orElseThrow(() -> new NoSuchElementException(

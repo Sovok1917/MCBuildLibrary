@@ -42,6 +42,7 @@ import sovok.mcbuildlibrary.service.AuthorService;
 import sovok.mcbuildlibrary.service.BuildService;
 import sovok.mcbuildlibrary.service.ColorService;
 import sovok.mcbuildlibrary.service.ThemeService;
+import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 
 @RestController
@@ -118,7 +119,10 @@ public class BuildController {
     public ResponseEntity<Build> createBuild(
             @Parameter(description = "Unique name for the build", required = true, example
                     = "MyAwesomeCastle")
-            @RequestParam(StringConstants.NAME_REQ_PARAM) @NotBlank @Size(min = 3) String name,
+            @RequestParam(StringConstants.NAME_REQ_PARAM) @NotBlank
+            @Size(min = 3)
+            @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
+            String name,
 
             @Parameter(description = "List of author names associated with the build",
                     required = true, example = "BuilderBob")
@@ -273,7 +277,11 @@ public class BuildController {
 
             // Reuse parameter descriptions from POST
             @Parameter(description = "Unique name for the build", required = true)
-            @RequestParam(StringConstants.NAME_REQ_PARAM) @NotBlank @Size(min = 3) String name,
+            @RequestParam(StringConstants.NAME_REQ_PARAM)
+            @NotBlank
+            @Size(min = 3)
+            @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
+            String name,
             @Parameter(description = "List of author names", required = true)
             @RequestParam(StringConstants.AUTHORS_REQ_PARAM) @NotEmpty @Size(min = 1)
             List<@NotBlank String> authorNames,

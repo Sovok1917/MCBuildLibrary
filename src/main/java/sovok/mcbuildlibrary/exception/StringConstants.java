@@ -31,7 +31,7 @@ public final class StringConstants {
 
     // --- Entity Specific ---
     public static final String AUTHOR = "Author";
-    public static final String AUTHORS = "authors";
+    public static final String AUTHORS = "Authors";
     public static final String BUILD = "Build";
     public static final String COLOR = "Color";
     public static final String THEME = "Theme";
@@ -68,5 +68,7 @@ public final class StringConstants {
     public static final String NAME_SIZE = "Name must be between {min} and {max} characters";
     public static final String FILE_NOT_EMPTY = "File cannot be empty";
     public static final String LOG_MESSAGE_FORMAT = "{}: {}";
+    public static final String NAME_NOT_ONLY_NUMERIC = "Name must not consist of only numeric "
+            + "characters";
 
 }

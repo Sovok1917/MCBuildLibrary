@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/model/Theme.java
 package sovok.mcbuildlibrary.model;
 
 import jakarta.persistence.Column;
@@ -13,6 +12,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import sovok.mcbuildlibrary.exception.StringConstants; // Import
+import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 @Entity
 @Data
@@ -28,5 +28,6 @@ public class Theme {
     // Remove max = 50, keep min = 2 if desired
     @Size(min = 2, message = StringConstants.NAME_SIZE)
     @Column(unique = true, nullable = false)
+    @NotPurelyNumeric
     private String name;
 }
