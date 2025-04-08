@@ -10,9 +10,6 @@ import sovok.mcbuildlibrary.model.Color;
 public interface ColorRepository extends JpaRepository<Color, Long> {
     Optional<Color> findByName(String name);
 
-    @Query("SELECT c FROM Color c WHERE LOWER(c.name) LIKE :pattern")
-    List<Color> findByNameLike(@Param("pattern") String pattern);
-
     @Query(value = "SELECT * FROM color c WHERE :name IS NULL OR SIMILARITY(c.name, :name) > 0.3",
             nativeQuery = true)
     List<Color> fuzzyFindByName(@Param("name") String name);

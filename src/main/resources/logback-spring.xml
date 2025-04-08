@@ -58,7 +58,7 @@
     </root>
 
     <!-- You can set specific log levels for your packages -->
-    <logger name="sovok.mcbuildlibrary" level="DEBUG" additivity="false">
+    <logger name="sovok.mcbuildlibrary" level="INFO" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ROLLING_FILE"/>
         <appender-ref ref="ERROR_FILE"/>
