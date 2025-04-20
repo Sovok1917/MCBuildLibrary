@@ -1,7 +1,7 @@
 package sovok.mcbuildlibrary.exception;
 
-import java.time.format.DateTimeFormatter; // <-- Import added
-import java.util.regex.Pattern;             // <-- Import added
+import java.time.format.DateTimeFormatter;
+import java.util.regex.Pattern;
 
 public final class StringConstants {
 
@@ -24,6 +24,7 @@ public final class StringConstants {
             + "'%s' is missing."; // %s=param name, %s=param type
     public static final String MISSING_FILE_PART_MESSAGE = "Required file part '%s' is miss"
             + "ing."; // %s=part name
+    public static final String BULK_OPERATION_SUCCESS = "Bulk operation completed."; // New
 
     // --- Resource Identifiers ---
     public static final String WITH_ID = "with ID";
@@ -60,7 +61,6 @@ public final class StringConstants {
     public static final String AUTHOR_QUERY_PARAM = "author";
     public static final String THEME_QUERY_PARAM = "theme";
     public static final String COLOR_QUERY_PARAM = "color";
-    // Note: LogController specific path variables moved to Logging section below
 
     // --- Validation Messages ---
     public static final String NAME_NOT_BLANK = "Name cannot be blank";
@@ -95,6 +95,15 @@ public final class StringConstants {
     public static final String TODAY_LOG_ENDPOINT_PATH = "/today"; // Endpoint path for today's
     // log
 
+    // --- Path Variables and Endpoints (General API) ---  // New Section
+    public static final String API_BASE_PATH = ""; // Example base path
+    public static final String AUTHORS_ENDPOINT = API_BASE_PATH + "/authors";
+    public static final String BUILDS_ENDPOINT = API_BASE_PATH + "/builds";
+    public static final String COLORS_ENDPOINT = API_BASE_PATH + "/colors";
+    public static final String THEMES_ENDPOINT = API_BASE_PATH + "/themes";
+    public static final String BULK_OPERATIONS_ENDPOINT = API_BASE_PATH + "/bulk"; // New
+    public static final String BULK_CREATE_METADATA_ENDPOINT = "/create-metadata"; // New
+
     // --- Date Formatting and Parsing (Logs) ---
     public static final DateTimeFormatter LOG_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
     // YYYY-MM-DD
@@ -120,6 +129,14 @@ public final class StringConstants {
     public static final String DOWNLOAD_TODAY_SUMMARY = "Download today's active log file";
     public static final String DOWNLOAD_TODAY_DESCRIPTION = "Downloads the currently active log "
             + "file for today.";
+
+    // --- API Descriptions (Bulk Operations) --- // New Section
+    public static final String BULK_TAG_NAME = "Bulk Operations";
+    public static final String BULK_TAG_DESCRIPTION = "API for performing bulk actions";
+    public static final String BULK_CREATE_SUMMARY = "Bulk create Authors, Themes, and Colors";
+    public static final String BULK_CREATE_DESCRIPTION = "Creates multiple Authors, "
+            + "Themes, and Colors "
+            + "from the provided lists of names. Existing names will be skipped.";
 
     // --- Response Messages and Titles (Logs) ---
     public static final String LOG_DIRECTORY_ACCESS_ERROR_DETAIL = "An internal error occurred wh"

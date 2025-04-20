@@ -1,9 +1,14 @@
+// file: src/main/java/sovok/mcbuildlibrary/service/ThemeService.java
 package sovok.mcbuildlibrary.service;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,6 +21,8 @@ import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.model.Theme;
 import sovok.mcbuildlibrary.repository.BuildRepository;
 import sovok.mcbuildlibrary.repository.ThemeRepository;
+import sovok.mcbuildlibrary.util.BulkCreationResult; // Import new Result class
+
 
 @Service
 public class ThemeService {
@@ -49,7 +56,10 @@ public class ThemeService {
                 .orElseGet(() -> {
                     logger.info("Theme '{}' not found, creating new.", name);
                     Theme newTheme = Theme.builder().name(name).build();
-                    return themeRepository.save(newTheme);
+                    Theme savedTheme = themeRepository.save(newTheme);
+                    cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedTheme.getId()), savedTheme);
+                    cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
+                    return savedTheme;
                 });
     }
 
@@ -72,22 +82,84 @@ public class ThemeService {
         return savedTheme;
     }
 
+    /**
+     * Creates multiple themes in bulk. Skips names that already exist (case-insensitive).
+     *
+     * @param namesToCreate A collection of theme names to potentially create.
+     * @return A BulkCreationResult containing lists of created and skipped names.
+     */
+    @Transactional
+    public BulkCreationResult<String> createThemesBulk(Collection<String> namesToCreate) {
+        if (namesToCreate == null || namesToCreate.isEmpty()) {
+            return new BulkCreationResult<>(Collections.emptyList(), Collections.emptyList());
+        }
+
+        Set<String> uniqueLowerNames = namesToCreate.stream()
+                .filter(name -> name != null && !name.isBlank())
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+
+        if (uniqueLowerNames.isEmpty()) {
+            return new BulkCreationResult<>(Collections.emptyList(), namesToCreate.stream().toList());
+        }
+
+        Set<Theme> existingThemes = themeRepository.findByNamesIgnoreCase(uniqueLowerNames);
+        Set<String> existingLowerNames = existingThemes.stream()
+                .map(Theme::getName)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+
+        Map<Boolean, List<String>> partitionedNames = namesToCreate.stream()
+                .filter(name -> name != null && !name.isBlank())
+                .map(String::trim)
+                .distinct()
+                .collect(Collectors.partitioningBy(
+                        name -> !existingLowerNames.contains(name.toLowerCase())
+                ));
+
+        List<String> namesToActuallyCreate = partitionedNames.get(true);
+        List<String> skippedNames = partitionedNames.get(false);
+        namesToCreate.stream()
+                .filter(name -> name == null || name.isBlank())
+                .forEach(skippedNames::add);
+
+
+        if (namesToActuallyCreate.isEmpty()) {
+            logger.info("Bulk Theme Creation: No new themes to create. Skipped: {}", skippedNames);
+            return new BulkCreationResult<>(Collections.emptyList(), skippedNames);
+        }
+
+        List<Theme> newThemes = namesToActuallyCreate.stream()
+                .map(name -> Theme.builder().name(name).build())
+                .toList();
+
+        List<Theme> savedThemes = themeRepository.saveAll(newThemes);
+        logger.info("Bulk Theme Creation: Created {} themes. Skipped {} themes.",
+                savedThemes.size(), skippedNames.size());
+
+        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
+
+        List<String> createdNames = savedThemes.stream().map(Theme::getName).toList();
+        return new BulkCreationResult<>(createdNames, skippedNames);
+    }
+
+
     @Transactional(readOnly = true)
     public Optional<ThemeDto> findThemeDtoById(Long id) {
         String cacheKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, id);
         Optional<Theme> cachedTheme = cache.get(cacheKey);
         if (cachedTheme.isPresent()) {
-            return cachedTheme.map(this::convertToDto);
+            return Optional.of(convertToDto(cachedTheme.get()));
         }
 
         Optional<Theme> themeOpt = themeRepository.findById(id);
-        themeOpt.ifPresent(theme -> cache.put(cacheKey, theme)); // Cache individual item
+        themeOpt.ifPresent(theme -> cache.put(cacheKey, theme));
         return themeOpt.map(this::convertToDto);
     }
 
     @Transactional(readOnly = true)
     public List<ThemeDto> findAllThemeDtos() {
-        // REMOVED: Cache check and put for getAll
         logger.debug("Fetching all themes from repository (getAll cache disabled).");
         List<Theme> themes = themeRepository.findAll();
         return themes.stream().map(this::convertToDto).toList();
@@ -95,17 +167,17 @@ public class ThemeService {
 
     @Transactional(readOnly = true)
     public List<ThemeDto> findThemeDtos(String name) {
-        // Query caching remains
         Map<String, Object> params = Map.of("name", name);
         String queryKey = InMemoryCache.generateQueryKey(CACHE_ENTITY_TYPE, params);
 
         Optional<List<Theme>> cachedResult = cache.get(queryKey);
+        List<Theme> themes;
         if (cachedResult.isPresent()) {
-            return cachedResult.get().stream().map(this::convertToDto).toList();
+            themes = cachedResult.get();
+        } else {
+            themes = themeRepository.fuzzyFindByName(name);
+            cache.put(queryKey, themes);
         }
-
-        List<Theme> themes = themeRepository.fuzzyFindByName(name);
-        cache.put(queryKey, themes);
         return themes.stream().map(this::convertToDto).toList();
     }
 
@@ -131,11 +203,22 @@ public class ThemeService {
                     StringConstants.ALREADY_EXISTS_MESSAGE));
         }
 
+        String oldName = theme.getName();
+        final boolean nameChanged = !oldName.equalsIgnoreCase(newName);
+
         theme.setName(newName);
         Theme updatedTheme = themeRepository.save(theme);
         logger.info("Updated Theme with ID: {}", updatedTheme.getId());
 
-        cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, updatedTheme.getId()), updatedTheme);
+        // Update cache
+        String idCacheKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, updatedTheme.getId());
+        cache.put(idCacheKey, updatedTheme);
+        if (nameChanged) {
+            cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, oldName));
+            cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, updatedTheme.getName()), updatedTheme);
+        } else {
+            cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, updatedTheme.getName()), updatedTheme);
+        }
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
         return updatedTheme;
@@ -149,11 +232,18 @@ public class ThemeService {
         }
 
         Long themeId = theme.getId();
+        String themeName = theme.getName();
         themeRepository.delete(theme);
-        logger.info("Deleted Theme with ID: {}", themeId);
+        logger.info("Deleted Theme with ID: {}, Name: {}", themeId, themeName);
 
+        // Evict cache
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, themeId));
+        cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, themeName));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
+
+        // No direct build modification needed, but associated builds *could* be re-queried,
+        // so Build query cache invalidation is reasonable if strict consistency is desired.
+        cache.evictQueryCacheByType(StringConstants.BUILD);
     }
 
     @Transactional

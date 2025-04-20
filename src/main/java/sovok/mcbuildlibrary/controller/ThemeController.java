@@ -32,7 +32,7 @@ import sovok.mcbuildlibrary.service.ThemeService;
 import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 @RestController
-@RequestMapping("/themes")
+@RequestMapping(StringConstants.THEMES_ENDPOINT)
 @Validated
 @Tag(name = "Themes", description = "API for managing build themes")
 public class ThemeController {

@@ -32,7 +32,7 @@ import sovok.mcbuildlibrary.service.AuthorService;
 import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 @RestController
-@RequestMapping("/authors")
+@RequestMapping(StringConstants.AUTHORS_ENDPOINT)
 @Validated
 @Tag(name = "Authors", description = "API for managing build authors")
 public class AuthorController {

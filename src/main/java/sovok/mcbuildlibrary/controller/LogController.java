@@ -32,7 +32,6 @@ import sovok.mcbuildlibrary.exception.LogAccessException;
 import sovok.mcbuildlibrary.exception.StringConstants;
 
 @RestController
-// Use constants from StringConstants
 @RequestMapping(StringConstants.BASE_LOGS_PATH)
 @Tag(name = StringConstants.LOGS_TAG_NAME, description = StringConstants.LOGS_TAG_DESCRIPTION)
 public class LogController {

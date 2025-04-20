@@ -46,7 +46,7 @@ import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 
 @RestController
-@RequestMapping("/builds")
+@RequestMapping(StringConstants.BUILDS_ENDPOINT)
 @Validated
 @Tag(name = "Builds", description = "API for managing Minecraft builds (including schematics and "
         + "screenshots)")

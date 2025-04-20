@@ -32,7 +32,7 @@ import sovok.mcbuildlibrary.service.ColorService;
 import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 @RestController
-@RequestMapping("/colors")
+@RequestMapping(StringConstants.COLORS_ENDPOINT)
 @Validated
 @Tag(name = "Colors", description = "API for managing build colors")
 public class ColorController {
