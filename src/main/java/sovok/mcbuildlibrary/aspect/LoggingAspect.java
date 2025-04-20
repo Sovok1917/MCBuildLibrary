@@ -1,7 +1,8 @@
+// file: src/main/java/sovok/mcbuildlibrary/aspect/LoggingAspect.java
 package sovok.mcbuildlibrary.aspect;
 
 import java.util.Arrays;
-import java.util.NoSuchElementException;
+// Removed NoSuchElementException, IllegalStateException imports as we won't catch them here anymore
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.AfterThrowing;
@@ -11,14 +12,14 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import sovok.mcbuildlibrary.exception.LoggingAspectException;
+// Removed LoggingAspectException import as we won't throw it from logAround anymore for handled exceptions
 
 /**
  * Aspect for logging execution of specific Spring components.
  * Now includes Repository, Service, RestController, and Component annotated beans.
  */
 @Aspect
-@Component // Ensure this component itself is picked up by Spring
+@Component
 public class LoggingAspect {
 
     private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -30,7 +31,7 @@ public class LoggingAspect {
     @Pointcut("within(@org.springframework.stereotype.Repository *)"
             + " || within(@org.springframework.stereotype.Service *)"
             + " || within(@org.springframework.web.bind.annotation.RestController *)"
-            + " || within(@org.springframework.stereotype.Component *)") // <-- Added this line
+            + " || within(@org.springframework.stereotype.Component *)")
     public void springBeanPointcut() {
         // Method is empty as this is just a Pointcut definition.
     }
@@ -44,7 +45,8 @@ public class LoggingAspect {
     }
 
     /**
-     * Advice that logs methods throwing exceptions.
+     * Advice that logs methods throwing exceptions. Applied AFTER the exception is thrown.
+     * Lets GlobalExceptionHandler handle the HTTP response.
      * Applied to methods matching both application package and Spring bean pointcuts.
      *
      * @param joinPoint join point for advice.
@@ -53,27 +55,46 @@ public class LoggingAspect {
     @AfterThrowing(pointcut = "applicationPackagePointcut() && springBeanPointcut()",
             throwing = "e")
     public void logAfterThrowing(JoinPoint joinPoint, Throwable e) {
-        log.error("Exception in {}.{}() with cause = '{}' and exception = '{}'",
-                joinPoint.getSignature().getDeclaringTypeName(),
-                joinPoint.getSignature().getName(),
-                e.getCause() != null ? e.getCause() : "NULL",
-                e.getMessage(), // Log the exception message
-                e); // Log the full exception stack trace via SLF4j parameter substitution
+        // Log based on the exception type - client errors vs server errors
+        if (e instanceof jakarta.validation.ConstraintViolationException ||
+                e instanceof IllegalArgumentException ||
+                e instanceof java.util.NoSuchElementException ||
+                e instanceof IllegalStateException ||
+                e instanceof org.springframework.web.bind.MethodArgumentNotValidException ||
+                e instanceof org.springframework.web.bind.MissingServletRequestParameterException ||
+                e instanceof org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ||
+                e instanceof org.springframework.web.multipart.support.MissingServletRequestPartException) {
+
+            // Log client-side errors (like validation) typically as WARN
+            log.warn("Client Error in {}.{}() - Exception: {}, Message: '{}'",
+                    joinPoint.getSignature().getDeclaringTypeName(),
+                    joinPoint.getSignature().getName(),
+                    e.getClass().getSimpleName(),
+                    e.getMessage()); // Log exception message, full trace might be too verbose for validation errors
+            // Optionally log args if needed for debugging: log.warn("... with argument[s] = {}", Arrays.toString(joinPoint.getArgs()));
+        } else {
+            // Log unexpected server-side errors as ERROR with stack trace
+            log.error("Exception in {}.{}() with cause = '{}' and exception = '{}'",
+                    joinPoint.getSignature().getDeclaringTypeName(),
+                    joinPoint.getSignature().getName(),
+                    e.getCause() != null ? e.getCause() : "NULL",
+                    e.getMessage(), // Log the exception message
+                    e); // Log the full exception stack trace via SLF4j parameter substitution
+        }
     }
 
     /**
-     * Advice that logs when a method is entered and exited.
-     * Uses @Around to capture entry, exit, and execution time.
-     * Applied to methods matching both application package and Spring bean pointcuts.
+     * Advice that logs when a method is entered and exited, and measures execution time.
+     * It allows exceptions to propagate naturally to be handled by GlobalExceptionHandler.
      *
      * @param joinPoint join point for advice.
-     * @return result.
+     * @return result of the wrapped method.
+     * @throws Throwable propagates exceptions from the wrapped method.
      */
     @Around("applicationPackagePointcut() && springBeanPointcut()")
-    public Object logAround(ProceedingJoinPoint joinPoint) { // Removed "throws Throwable"
-        long startTime = System.currentTimeMillis(); // Start timing before logging entry
+    public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable { // Allow Throwable propagation
+        long startTime = System.currentTimeMillis();
 
-        // Log entry if debug is enabled
         if (log.isDebugEnabled()) {
             log.debug("Enter: {}.{}() with argument[s] = {}",
                     joinPoint.getSignature().getDeclaringTypeName(),
@@ -81,13 +102,11 @@ public class LoggingAspect {
                     Arrays.toString(joinPoint.getArgs()));
         }
 
-        Object result;
         try {
             // Proceed with the original method execution
-            result = joinPoint.proceed();
-            long endTime = System.currentTimeMillis(); // End timing after successful execution
+            Object result = joinPoint.proceed();
+            long endTime = System.currentTimeMillis();
 
-            // Log successful exit if debug is enabled
             if (log.isDebugEnabled()) {
                 log.debug("Exit: {}.{}() with result = {}; Execution time = {} ms",
                         joinPoint.getSignature().getDeclaringTypeName(),
@@ -96,38 +115,20 @@ public class LoggingAspect {
                         endTime - startTime);
             }
             return result;
-        } catch (IllegalArgumentException | NoSuchElementException | IllegalStateException e) {
-            // Minimal logging here; let @AfterThrowing handle detailed exception logging
-            long endTime = System.currentTimeMillis();
-            log.warn("Method {}.{}() failed after {} ms",
-                    joinPoint.getSignature().getDeclaringTypeName(),
-                    joinPoint.getSignature().getName(),
-                    endTime - startTime);
-
-            // Wrap the exception with additional context before rethrowing
-            String contextMessage = String.format(
-                    "Exception occurred in %s.%s() with arguments: %s",
-                    joinPoint.getSignature().getDeclaringTypeName(),
-                    joinPoint.getSignature().getName(),
-                    Arrays.toString(joinPoint.getArgs())
-            );
-            throw new LoggingAspectException(contextMessage, e);
         } catch (Throwable t) {
-            // Minimal logging here; let @AfterThrowing handle detailed exception logging
+            // *** FIX: Removed the catch blocks that wrapped exceptions ***
+            // Just log timing on failure if needed (optional) and re-throw
             long endTime = System.currentTimeMillis();
-            log.error("Method {}.{}() failed unexpectedly after {} ms",
+            // Use the @AfterThrowing advice to log the exception details appropriately.
+            // We might still log a simple timing message here if desired.
+            log.debug("Method {}.{}() threw exception after {} ms", // Log as debug or trace
                     joinPoint.getSignature().getDeclaringTypeName(),
                     joinPoint.getSignature().getName(),
                     endTime - startTime);
 
-            // Wrap the throwable with additional context before rethrowing
-            String contextMessage = String.format(
-                    "Unexpected throwable in %s.%s() with arguments: %s",
-                    joinPoint.getSignature().getDeclaringTypeName(),
-                    joinPoint.getSignature().getName(),
-                    Arrays.toString(joinPoint.getArgs())
-            );
-            throw new LoggingAspectException(contextMessage, t);
+            throw t; // *** IMPORTANT: Re-throw the original exception ***
         }
+        // Removed the previous specific catch blocks (IllegalArgumentException etc.)
+        // and the generic catch (Throwable t) that wrapped exceptions.
     }
 }

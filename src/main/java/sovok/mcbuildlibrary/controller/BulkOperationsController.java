@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/controller/BulkOperationsController.java
 package sovok.mcbuildlibrary.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function; // Import Function
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -37,7 +39,6 @@ public class BulkOperationsController {
     private final ThemeService themeService;
     private final ColorService colorService;
 
-    // Constructor Injection
     public BulkOperationsController(AuthorService authorService, ThemeService themeService,
                                     ColorService colorService) {
         this.authorService = authorService;
@@ -49,9 +50,9 @@ public class BulkOperationsController {
             = StringConstants.BULK_CREATE_DESCRIPTION)
     @ApiResponses(value = {@ApiResponse(responseCode = "200", description
             = StringConstants.BULK_OPERATION_SUCCESS,
-                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = BulkCreateResponseDto.class))),
-        @ApiResponse(responseCode = "400", description = StringConstants.VALIDATION_FAILED_MESSAGE,
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = BulkCreateResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = StringConstants.VALIDATION_FAILED_MESSAGE,
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ValidationErrorResponse.class)))
     })
@@ -62,12 +63,13 @@ public class BulkOperationsController {
                     required = true)
             @Valid @RequestBody BulkCreateRequestDto requestDto) {
 
+        // *** FIX: Use the inherited createBulk method reference ***
         BulkCreationResult<String> authorResult = processBulkCreation(requestDto.getAuthors(),
-                authorService::createAuthorsBulk);
+                authorService::createBulk); // Use base method
         BulkCreationResult<String> themeResult = processBulkCreation(requestDto.getThemes(),
-                themeService::createThemesBulk);
+                themeService::createBulk); // Use base method
         BulkCreationResult<String> colorResult = processBulkCreation(requestDto.getColors(),
-                colorService::createColorsBulk);
+                colorService::createBulk); // Use base method
 
         BulkCreateResponseDto response = BulkCreateResponseDto.builder()
                 .createdAuthors(authorResult.createdItems())
@@ -82,20 +84,18 @@ public class BulkOperationsController {
     }
 
     // Helper method to handle null lists and extract names
-    @SuppressWarnings("unused")
-    private <T> BulkCreationResult<String> processBulkCreation(
+    private BulkCreationResult<String> processBulkCreation(
             List<BulkCreateRequestDto.NameDto> nameDtos,
-            java.util.function.Function<List<String>,
-                    BulkCreationResult<String>> creationFunction) {
+            // Use Function interface explicitly
+            Function<List<String>, BulkCreationResult<String>> creationFunction) {
 
         if (nameDtos == null || nameDtos.isEmpty()) {
             return new BulkCreationResult<>(Collections.emptyList(), Collections.emptyList());
         }
 
-        // Extract names using Stream API and lambda
         List<String> names = nameDtos.stream()
-                .map(BulkCreateRequestDto.NameDto::name)
-                .toList();
+                .map(BulkCreateRequestDto.NameDto::name) // Use record accessor method
+                .toList(); // Use toList() for immutable list
         return creationFunction.apply(names);
     }
 }

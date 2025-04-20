@@ -5,6 +5,8 @@ import java.util.regex.Pattern;
 
 public final class StringConstants {
 
+
+
     private StringConstants() {
         // Private constructor to prevent instantiation
     }
@@ -34,8 +36,11 @@ public final class StringConstants {
     public static final String AUTHOR = "Author";
     public static final String AUTHORS = "Authors";
     public static final String BUILD = "Build";
+    public static final String BUILDS = "Builds";
+    public static final String COLORS = "Colors";
     public static final String COLOR = "Color";
     public static final String THEME = "Theme";
+    public static final String THEMES = "Themes";
     public static final String SCHEM_FILE = "Schem file";
 
     // --- Resource Specific Messages ---

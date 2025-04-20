@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/model/Build.java
 package sovok.mcbuildlibrary.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -14,9 +15,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
-import jakarta.validation.constraints.NotBlank; // Import
-import jakarta.validation.constraints.NotEmpty; // Import for collections
-import jakarta.validation.constraints.Size;     // Import
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -24,22 +25,22 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Cascade; // Keep specific Cascade if needed
 import org.hibernate.annotations.CascadeType;
-import sovok.mcbuildlibrary.exception.StringConstants; // Import
+import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
 @Entity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
+@Builder // Build uses regular @Builder, not @SuperBuilder as it doesn't inherit
 public class Build {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NotBlank(message = StringConstants.NAME_NOT_BLANK)
-    // Remove max = 100, keep min = 3 if desired
     @Size(min = 3, message = StringConstants.NAME_SIZE)
     @Column(unique = true, nullable = false)
     @NotPurelyNumeric
@@ -52,7 +53,8 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "author_id")
     )
-    @org.hibernate.annotations.Cascade(CascadeType.PERSIST)
+    @Cascade(CascadeType.PERSIST) // Use org.hibernate.annotations.Cascade
+    @Builder.Default // *** FIX: Add Builder.Default ***
     private Set<Author> authors = new HashSet<>();
 
     @NotEmpty(message = "At least one theme is required")
@@ -62,12 +64,11 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "theme_id")
     )
-    @org.hibernate.annotations.Cascade(CascadeType.PERSIST)
+    @Cascade(CascadeType.PERSIST)
+    @Builder.Default // *** FIX: Add Builder.Default ***
     private Set<Theme> themes = new HashSet<>();
 
-    // Remove max = 500 from description
-    @Size(message = "Description cannot exceed {max} characters") // Keep message generic if
-    // needed, but remove max
+    @Size(message = "Description cannot exceed {max} characters")
     private String description;
 
     @NotEmpty(message = "At least one color is required")
@@ -77,16 +78,17 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "color_id")
     )
-    @org.hibernate.annotations.Cascade(CascadeType.PERSIST)
+    @Cascade(CascadeType.PERSIST)
+    @Builder.Default // *** FIX: Add Builder.Default ***
     private Set<Color> colors = new HashSet<>();
 
     @ElementCollection
     @CollectionTable(name = "screenshots", joinColumns = @JoinColumn(name = "build_id"))
     @Column(name = "screenshot")
-    @org.hibernate.annotations.Cascade(CascadeType.ALL)
-    @Size(max = 10, message = "Maximum of 10 screenshots allowed") // This is
-    // usually fine as it doesn't alter a core column type
-    private List<String> screenshots;
+    @Cascade(CascadeType.ALL) // CascadeType.ALL includes PERSIST, MERGE, REMOVE, REFRESH, DETACH
+    @Size(max = 10, message = "Maximum of 10 screenshots allowed")
+    // @Builder.Default // No need for default on List if null/empty list is acceptable default from builder
+    private List<String> screenshots; // Initialized to null by default
 
     @Lob
     @Basic(fetch = FetchType.LAZY)

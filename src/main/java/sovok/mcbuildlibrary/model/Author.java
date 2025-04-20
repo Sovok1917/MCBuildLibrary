@@ -1,33 +1,27 @@
+// file: src/main/java/sovok/mcbuildlibrary/model/Author.java
 package sovok.mcbuildlibrary.model;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.validation.constraints.NotBlank; // Import
-import jakarta.validation.constraints.Size;     // Import
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import sovok.mcbuildlibrary.exception.StringConstants; // Import
-import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import lombok.experimental.SuperBuilder;
 
 @Entity
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
-public class Author {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
+@SuperBuilder
+public class Author extends BaseNamedEntity {
+    // Fields id and name inherited
 
-    @NotBlank(message = StringConstants.NAME_NOT_BLANK)
-    // Remove max = 50, keep min = 2 if desired for validation
-    @Size(min = 2, message = StringConstants.NAME_SIZE)
-    @Column(unique = true, nullable = false)
-    @NotPurelyNumeric
-    private String name;
+    /**
+     * Default protected constructor required by JPA.
+     * Explicitly added to work alongside @SuperBuilder.
+     */
+    protected Author() { // *** FIX: Explicit protected no-arg constructor ***
+        super(); // Call super constructor if needed (often implicit)
+    }
+
+    // SuperBuilder generates the builder and necessary constructor(s) for it.
 }
