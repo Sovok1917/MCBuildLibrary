@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/model/Theme.java
 package sovok.mcbuildlibrary.model;
 
 import jakarta.persistence.Entity;

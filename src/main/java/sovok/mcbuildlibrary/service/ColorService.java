@@ -1,5 +1,6 @@
 package sovok.mcbuildlibrary.service;
 
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,6 @@ import sovok.mcbuildlibrary.model.Color;
 import sovok.mcbuildlibrary.repository.BuildRepository;
 import sovok.mcbuildlibrary.repository.ColorRepository;
 
-import java.util.List;
 
 @Service
 public class ColorService extends BaseNamedEntityService<Color, ColorDto, ColorRepository> {
@@ -21,7 +21,8 @@ public class ColorService extends BaseNamedEntityService<Color, ColorDto, ColorR
     private static final Logger logger = LoggerFactory.getLogger(ColorService.class);
 
     @Autowired
-    public ColorService(ColorRepository colorRepository, BuildRepository buildRepository, InMemoryCache cache) {
+    public ColorService(ColorRepository colorRepository, BuildRepository buildRepository,
+                        InMemoryCache cache) {
         super(colorRepository, buildRepository, cache);
     }
 
@@ -58,7 +59,8 @@ public class ColorService extends BaseNamedEntityService<Color, ColorDto, ColorR
     protected void checkDeletionConstraints(Color color) {
         List<Build> buildsWithColor = buildRepository.findBuildsByColorId(color.getId());
         if (!buildsWithColor.isEmpty()) {
-            logger.warn("Attempted to delete Color '{}' (ID: {}) which is associated with {} build(s).",
+            logger.warn("Attempted to delete Color '{}' (ID: {}) which is associated with {} "
+                            + "build(s).",
                     color.getName(), color.getId(), buildsWithColor.size());
             throw new IllegalStateException(
                     String.format(StringConstants.CANNOT_DELETE_ASSOCIATED,

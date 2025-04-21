@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/model/Build.java
 package sovok.mcbuildlibrary.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -87,7 +86,8 @@ public class Build {
     @Column(name = "screenshot")
     @Cascade(CascadeType.ALL) // CascadeType.ALL includes PERSIST, MERGE, REMOVE, REFRESH, DETACH
     @Size(max = 10, message = "Maximum of 10 screenshots allowed")
-    // @Builder.Default // No need for default on List if null/empty list is acceptable default from builder
+    // @Builder.Default // No need for default on List if null/empty list is acceptable
+    // default from builder
     private List<String> screenshots; // Initialized to null by default
 
     @Lob

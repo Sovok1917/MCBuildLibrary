@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/aspect/LoggingAspect.java
 package sovok.mcbuildlibrary.aspect;
 
 import java.util.Arrays;
@@ -12,7 +11,6 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-// Removed LoggingAspectException import as we won't throw it from logAround anymore for handled exceptions
 
 /**
  * Aspect for logging execution of specific Spring components.
@@ -56,22 +54,24 @@ public class LoggingAspect {
             throwing = "e")
     public void logAfterThrowing(JoinPoint joinPoint, Throwable e) {
         // Log based on the exception type - client errors vs server errors
-        if (e instanceof jakarta.validation.ConstraintViolationException ||
-                e instanceof IllegalArgumentException ||
-                e instanceof java.util.NoSuchElementException ||
-                e instanceof IllegalStateException ||
-                e instanceof org.springframework.web.bind.MethodArgumentNotValidException ||
-                e instanceof org.springframework.web.bind.MissingServletRequestParameterException ||
-                e instanceof org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ||
-                e instanceof org.springframework.web.multipart.support.MissingServletRequestPartException) {
+        if (e instanceof jakarta.validation.ConstraintViolationException
+                || e instanceof IllegalArgumentException
+                || e instanceof java.util.NoSuchElementException
+                || e instanceof IllegalStateException
+                || e instanceof org.springframework.web.bind.MethodArgumentNotValidException
+                || e instanceof org.springframework.web.bind
+                .MissingServletRequestParameterException
+                || e instanceof org.springframework.web.method.annotation
+                .MethodArgumentTypeMismatchException
+                || e instanceof org.springframework.web.multipart.support
+                .MissingServletRequestPartException) {
 
             // Log client-side errors (like validation) typically as WARN
             log.warn("Client Error in {}.{}() - Exception: {}, Message: '{}'",
                     joinPoint.getSignature().getDeclaringTypeName(),
                     joinPoint.getSignature().getName(),
                     e.getClass().getSimpleName(),
-                    e.getMessage()); // Log exception message, full trace might be too verbose for validation errors
-            // Optionally log args if needed for debugging: log.warn("... with argument[s] = {}", Arrays.toString(joinPoint.getArgs()));
+                    e.getMessage());
         } else {
             // Log unexpected server-side errors as ERROR with stack trace
             log.error("Exception in {}.{}() with cause = '{}' and exception = '{}'",
@@ -92,7 +92,7 @@ public class LoggingAspect {
      * @throws Throwable propagates exceptions from the wrapped method.
      */
     @Around("applicationPackagePointcut() && springBeanPointcut()")
-    public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable { // Allow Throwable propagation
+    public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
         long startTime = System.currentTimeMillis();
 
         if (log.isDebugEnabled()) {
@@ -128,7 +128,5 @@ public class LoggingAspect {
 
             throw t; // *** IMPORTANT: Re-throw the original exception ***
         }
-        // Removed the previous specific catch blocks (IllegalArgumentException etc.)
-        // and the generic catch (Throwable t) that wrapped exceptions.
     }
 }

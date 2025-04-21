@@ -8,7 +8,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.context.annotation.Lazy; // Keep Lazy for self-injection
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
@@ -24,14 +24,18 @@ public class BuildService {
 
     private final BuildRepository buildRepository;
     private final InMemoryCache cache;
+
+    // <<< FIX: Re-introduced self-injection mechanism >>>
     private BuildService self;
 
+    // Use setter injection with @Lazy to handle the bean proxy creation order
     @Autowired
     @Lazy
     public void setSelf(BuildService self) {
         this.self = self;
     }
 
+    // Constructor Injection for mandatory dependencies
     public BuildService(BuildRepository buildRepository, InMemoryCache cache) {
         this.buildRepository = buildRepository;
         this.cache = cache;
@@ -50,7 +54,6 @@ public class BuildService {
         Build savedBuild = buildRepository.save(build);
         logger.info("Created Build with ID: {}", savedBuild.getId());
 
-        // Cache individual build by ID and Name
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId()), savedBuild);
         cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getName()), savedBuild);
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
@@ -60,7 +63,6 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public Optional<Build> findBuildById(Long id) {
-        // Individual item caching remains
         String cacheKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, id);
         Optional<Build> cachedBuild = cache.get(cacheKey);
         if (cachedBuild.isPresent()) {
@@ -74,11 +76,10 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public Optional<Build> findByName(String name) {
-        // Individual item caching by name remains
         String cacheKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, name);
         Optional<Build> cachedBuild = cache.get(cacheKey);
         if (cachedBuild.isPresent()) {
-            if (cachedBuild.get().getName().equalsIgnoreCase(name)) {
+            if (cachedBuild.get().getName().equals(name)) {
                 return cachedBuild;
             } else {
                 cache.evict(cacheKey);
@@ -92,14 +93,12 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public List<Build> findAll() {
-        // REMOVED: Cache check and put for getAll
         logger.debug("Fetching all builds from repository (getAll cache disabled).");
         return buildRepository.findAll();
     }
 
     @Transactional(readOnly = true)
     public List<Build> filterBuilds(String author, String name, String theme, String color) {
-        // Query caching remains
         Map<String, Object> params = new HashMap<>();
         params.put("author", author);
         params.put("name", name);
@@ -120,7 +119,7 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public Optional<byte[]> getSchemFile(Long id) {
-        // Relies on findBuildById which still uses cache
+        // <<< FIX: Call findBuildById via self-injected proxy >>>
         return self.findBuildById(id)
                 .map(Build::getSchemFile)
                 .filter(schemBytes -> schemBytes.length > 0);
@@ -128,7 +127,7 @@ public class BuildService {
 
     @Transactional
     public Build updateBuild(Long id, Build updatedBuildData) {
-        // Relies on findBuildById which still uses cache
+        // <<< FIX: Call findBuildById via self-injected proxy >>>
         Build existingBuild = self.findBuildById(id)
                 .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
@@ -146,7 +145,6 @@ public class BuildService {
         String oldName = existingBuild.getName();
         final boolean nameChanged = !oldName.equalsIgnoreCase(updatedBuildData.getName());
 
-        // ... (update fields logic remains) ...
         existingBuild.setName(updatedBuildData.getName());
         existingBuild.setAuthors(updatedBuildData.getAuthors());
         existingBuild.setThemes(updatedBuildData.getThemes());
@@ -160,27 +158,29 @@ public class BuildService {
         Build savedBuild = buildRepository.save(existingBuild);
         logger.info("Updated Build with ID: {}", savedBuild.getId());
 
-        // Update individual caches
-        cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId()), savedBuild);
-        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
-
         String newName = savedBuild.getName();
+        String newIdKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId());
+        String newNameKey = InMemoryCache.generateKey(CACHE_ENTITY_TYPE, newName);
+
+        cache.put(newIdKey, savedBuild);
+
         if (nameChanged) {
             cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, oldName));
-            cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, newName), savedBuild);
+            cache.put(newNameKey, savedBuild);
         } else {
-            cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, newName), savedBuild);
+            cache.put(newNameKey, savedBuild);
         }
-        // Ensure ID cache is also updated
-        cache.put(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, savedBuild.getId()), savedBuild);
 
+        cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
 
         return savedBuild;
     }
 
+
     @Transactional
     public void deleteBuild(Long id) {
-        Build build = buildRepository.findById(id)
+        // <<< FIX: Call findBuildById via self-injected proxy >>>
+        Build build = self.findBuildById(id)
                 .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                         CACHE_ENTITY_TYPE, StringConstants.WITH_ID, id,
@@ -191,7 +191,6 @@ public class BuildService {
         buildRepository.deleteById(id);
         logger.info("Deleted Build with ID: {}", id);
 
-        // Evict individual caches
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, id));
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, name));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);

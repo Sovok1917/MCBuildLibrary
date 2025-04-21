@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/BuildController.java
 package sovok.mcbuildlibrary.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,7 +48,8 @@ import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 @RestController
 @RequestMapping(StringConstants.BUILDS_ENDPOINT)
 @Validated
-@Tag(name = StringConstants.BUILDS, description = "API for managing Minecraft builds (including schematics and "
+@Tag(name = StringConstants.BUILDS, description = "API for managing Minecraft builds "
+        + "(including schematics and "
         + "screenshots)")
 public class BuildController {
 
@@ -88,7 +88,8 @@ public class BuildController {
                 : null;
         // Optional: Add more robust error handling for getBytes()
         if (schemBytes == null && schemFile != null && !schemFile.isEmpty()) {
-            throw new IOException("Failed to read bytes from schematic file: " + schemFile.getOriginalFilename());
+            throw new IOException("Failed to read bytes from schematic file: " + schemFile
+                    .getOriginalFilename());
         }
 
 
@@ -114,8 +115,7 @@ public class BuildController {
             + "input (missing fields, "
             + "validation errors, duplicate name, empty file)",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(oneOf = {ValidationErrorResponse.class,
-                            ProblemDetail.class})))
+                    schema = @Schema(oneOf = {ValidationErrorResponse.class, ProblemDetail.class})))
     })
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Build> createBuild(
@@ -203,7 +203,7 @@ public class BuildController {
             = "Successfully found builds (list "
             + "might be empty)",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = Build[].class))), @ApiResponse( // Array notation
+                    schema = @Schema(implementation = Build[].class))), @ApiResponse(
             responseCode = "400", description = "Invalid query "
             + "parameter provided",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -217,7 +217,7 @@ public class BuildController {
             String author,
             @Parameter(description = "Fuzzy build name filter",
                     example = "Castle")
-            @RequestParam(value = StringConstants.NAME_REQ_PARAM, required = false) // Use NAME_REQ_PARAM for build name query consistency
+            @RequestParam(value = StringConstants.NAME_REQ_PARAM, required = false)
             String name,
             @Parameter(description = "Fuzzy theme name filter",
                     example = "Mediev")
@@ -238,7 +238,7 @@ public class BuildController {
             description = "Successfully retrieved screenshot "
                     + "list (may be empty)",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = String[].class))), @ApiResponse( // Array notation
+                    schema = @Schema(implementation = String[].class))), @ApiResponse(
             responseCode = "404", description = "Build not found",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
@@ -263,8 +263,8 @@ public class BuildController {
             + "(missing fields, "
             + "validation errors, duplicate name, empty file)",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(oneOf = {ValidationErrorResponse.class,
-                            ProblemDetail.class}))), @ApiResponse(responseCode = "404",
+                    schema = @Schema(oneOf = {ValidationErrorResponse.class, ProblemDetail
+                            .class}))), @ApiResponse(responseCode = "404",
             description = "Build not found",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
@@ -275,25 +275,30 @@ public class BuildController {
                     example = "10 or MyAwesomeCastle")
             @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier,
 
-            @Parameter(description = "Unique name for the build", required = true, example = "MyUpdatedCastle")
+            @Parameter(description = "Unique name for the build", required = true, example
+                    = "MyUpdatedCastle")
             @RequestParam(StringConstants.NAME_REQ_PARAM)
             @NotBlank
             @Size(min = 3, message = StringConstants.NAME_SIZE)
             @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
             String name,
-            @Parameter(description = "List of author names", required = true, example = "BuilderBob,ArchitectAnna")
+            @Parameter(description = "List of author names", required = true, example
+                    = "BuilderBob,ArchitectAnna")
             @RequestParam(StringConstants.AUTHORS_REQ_PARAM) @NotEmpty @Size(min = 1)
             List<@NotBlank String> authorNames,
-            @Parameter(description = "List of theme names", required = true, example = "Medieval,Fantasy")
+            @Parameter(description = "List of theme names", required = true, example
+                    = "Medieval,Fantasy")
             @RequestParam(StringConstants.THEMES_REQ_PARAM) @NotEmpty @Size(min = 1)
             List<@NotBlank String> themeNames,
             @Parameter(description = "Optional description", example = "An updated stone castle.")
-            @RequestParam(value = StringConstants.DESCRIPTION_REQ_PARAM, required = false) @Size(max = 500)
+            @RequestParam(value = StringConstants.DESCRIPTION_REQ_PARAM, required = false)
+            @Size(max = 500)
             String description,
             @Parameter(description = "List of color names", required = true, example = "Stone,Gray")
             @RequestParam(StringConstants.COLORS_REQ_PARAM) @NotEmpty @Size(min = 1)
             List<@NotBlank String> colorNames,
-            @Parameter(description = "List of screenshot URLs/identifiers (max 10)", example = "https://example.com/new_screenshot.png")
+            @Parameter(description = "List of screenshot URLs/identifiers (max 10)", example
+                    = "https://example.com/new_screenshot.png")
             @RequestParam(value = StringConstants.SCREENSHOTS_REQ_PARAM, required = false)
             @Size(max = 10) List<@NotBlank String> screenshots,
             @Parameter(description = "Optional: New .schem file to replace the existing one",
@@ -336,8 +341,8 @@ public class BuildController {
             + "for a specific build.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Schematic "
             + "file download initiated",
-            content = @Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE)),
-            @ApiResponse(responseCode = "404", description = "Build or schematic file not found",
+            content = @Content(mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE)), @ApiResponse(
+                    responseCode = "404", description = "Build or schematic file not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ProblemDetail.class)))
     })

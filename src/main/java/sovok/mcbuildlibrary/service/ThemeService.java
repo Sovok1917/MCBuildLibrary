@@ -1,5 +1,6 @@
 package sovok.mcbuildlibrary.service;
 
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,6 @@ import sovok.mcbuildlibrary.model.Theme;
 import sovok.mcbuildlibrary.repository.BuildRepository;
 import sovok.mcbuildlibrary.repository.ThemeRepository;
 
-import java.util.List;
 
 @Service
 public class ThemeService extends BaseNamedEntityService<Theme, ThemeDto, ThemeRepository> {
@@ -21,7 +21,8 @@ public class ThemeService extends BaseNamedEntityService<Theme, ThemeDto, ThemeR
     private static final Logger logger = LoggerFactory.getLogger(ThemeService.class);
 
     @Autowired
-    public ThemeService(ThemeRepository themeRepository, BuildRepository buildRepository, InMemoryCache cache) {
+    public ThemeService(ThemeRepository themeRepository, BuildRepository buildRepository,
+                        InMemoryCache cache) {
         super(themeRepository, buildRepository, cache);
     }
 
@@ -57,7 +58,8 @@ public class ThemeService extends BaseNamedEntityService<Theme, ThemeDto, ThemeR
     protected void checkDeletionConstraints(Theme theme) {
         List<Build> buildsWithTheme = buildRepository.findBuildsByThemeId(theme.getId());
         if (!buildsWithTheme.isEmpty()) {
-            logger.warn("Attempted to delete Theme '{}' (ID: {}) which is associated with {} build(s).",
+            logger.warn("Attempted to delete Theme '{}' (ID: {}) which "
+                            + "is associated with {} build(s).",
                     theme.getName(), theme.getId(), buildsWithTheme.size());
             throw new IllegalStateException(
                     String.format(StringConstants.CANNOT_DELETE_ASSOCIATED,

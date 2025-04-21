@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/AuthorController.java
 package sovok.mcbuildlibrary.controller;
 
 import io.swagger.v3.oas.annotations.Parameter;
@@ -7,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,8 +21,6 @@ import sovok.mcbuildlibrary.dto.AuthorDto;
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.service.AuthorService;
-
-import java.util.List;
 
 @RestController
 @RequestMapping(StringConstants.AUTHORS_ENDPOINT) // Define specific path here
@@ -60,24 +58,29 @@ public class AuthorController extends BaseNamedEntityController<Author, AuthorDt
 
     @Override
     @PostMapping
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Author created successfully",
+    @ApiResponses(value = {@ApiResponse(responseCode = "201", description
+            = "Author created successfully",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = Author.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid input (blank name, duplicate name, etc.)",
+                            schema = @Schema(implementation = Author.class))), @ApiResponse(
+                                    responseCode = "400", description = "Invalid "
+            + "input (blank name, duplicate "
+                    + "name, etc.)",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(oneOf = {sovok.mcbuildlibrary.exception.ValidationErrorResponse.class, org.springframework.http.ProblemDetail.class})))
+                            schema = @Schema(oneOf = {sovok.mcbuildlibrary.exception
+                                    .ValidationErrorResponse.class, org.springframework.http
+                                    .ProblemDetail.class})))
     })
     public ResponseEntity<Author> createEntity(
-            @Parameter(description = "Name of the new author", required = true, example = "BuilderBob")
+            @Parameter(description = "Name of the new author", required = true,
+                    example = "BuilderBob")
             @RequestParam(StringConstants.NAME_REQ_PARAM) String name) {
         return super.createEntity(name);
     }
 
     @Override
     @GetMapping
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved authors",
+    @ApiResponses(value = {@ApiResponse(responseCode = "200",
+            description = "Successfully retrieved authors",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = AuthorDto[].class)))
     })
@@ -87,50 +90,61 @@ public class AuthorController extends BaseNamedEntityController<Author, AuthorDt
 
     @Override
     @GetMapping("/{identifier}")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved author",
+    @ApiResponses(value = {@ApiResponse(responseCode = "200",
+            description = "Successfully retrieved author",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = AuthorDto.class))),
-            @ApiResponse(responseCode = "404", description = "Author not found",
+                            schema = @Schema(implementation = AuthorDto.class))), @ApiResponse(
+                                    responseCode = "404", description = "Author not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = org.springframework.http.ProblemDetail.class)))
+                            schema = @Schema(implementation = org.springframework.http
+                                    .ProblemDetail.class)))
     })
     public ResponseEntity<AuthorDto> getEntityByIdentifier(
-            @Parameter(description = "ID or exact name of the author", required = true, example = "1 or BuilderBob")
+            @Parameter(description = "ID or exact name of the author", required = true, example
+                    = "1 or BuilderBob")
             @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier) {
         return super.getEntityByIdentifier(identifier);
     }
 
     @Override
     @PutMapping("/{identifier}")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Author updated successfully",
+    @ApiResponses(value = {@ApiResponse(responseCode = "200",
+            description = "Author updated successfully",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = Author.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid input (blank name, duplicate name, etc.)",
+                            schema = @Schema(implementation = Author.class))), @ApiResponse(
+                                    responseCode = "400", description = "Invalid input (blank "
+            + "name, duplicate name, etc.)",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(oneOf = {sovok.mcbuildlibrary.exception.ValidationErrorResponse.class, org.springframework.http.ProblemDetail.class}))),
-            @ApiResponse(responseCode = "404", description = "Author not found",
+                            schema = @Schema(oneOf = {sovok.mcbuildlibrary.exception
+                                    .ValidationErrorResponse.class, org.springframework.http
+                                    .ProblemDetail.class}))), @ApiResponse(responseCode = "404",
+            description = "Author not found",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = org.springframework.http.ProblemDetail.class)))
+                            schema = @Schema(implementation = org.springframework.http
+                                    .ProblemDetail.class)))
     })
     public ResponseEntity<Author> updateEntity(
-            @Parameter(description = "ID or exact name of the author to update", required = true, example = "1 or BuilderBob")
+            @Parameter(description = "ID or exact name of the author to update", required = true,
+                    example = "1 or BuilderBob")
             @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier,
-            @Parameter(description = "The new name for the author", required = true, example = "ArchitectAnna")
+            @Parameter(description = "The new name for the author", required = true,
+                    example = "ArchitectAnna")
             @RequestParam(StringConstants.NAME_REQ_PARAM) String newName) {
         return super.updateEntity(identifier, newName);
     }
 
     @Override
     @GetMapping("/query")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully found authors (list might be empty)",
+    @ApiResponses(value = {@ApiResponse(responseCode = "200",
+            description = "Successfully found authors (list "
+                    + "might be empty)",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = AuthorDto[].class))),
-            @ApiResponse(responseCode = "400", description = "Invalid query parameter provided",
+                            schema = @Schema(implementation = AuthorDto[].class))), @ApiResponse(
+                                    responseCode = "400",
+            description = "Invalid query parameter provided",
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = org.springframework.http.ProblemDetail.class)))
+                            schema = @Schema(implementation = org.springframework.http
+                                    .ProblemDetail.class)))
     })
     public ResponseEntity<List<AuthorDto>> getEntitiesByQuery(
             @Parameter(description = "Fuzzy name to search for authors.", example = "Bldr")

@@ -21,7 +21,8 @@ public class AuthorService extends BaseNamedEntityService<Author, AuthorDto, Aut
     private static final Logger logger = LoggerFactory.getLogger(AuthorService.class);
 
     @Autowired
-    public AuthorService(AuthorRepository authorRepository, BuildRepository buildRepository, InMemoryCache cache) {
+    public AuthorService(AuthorRepository authorRepository, BuildRepository buildRepository,
+                         InMemoryCache cache) {
         super(authorRepository, buildRepository, cache);
     }
 
@@ -58,7 +59,8 @@ public class AuthorService extends BaseNamedEntityService<Author, AuthorDto, Aut
         // Author deletion *is* allowed, but triggers build handling logic.
         // So, no exception needs to be thrown here. The actual handling
         // is done in the overridden deleteInternal method.
-        logger.debug("Pre-deletion check for Author '{}' (ID: {}): No constraints preventing deletion itself.",
+        logger.debug("Pre-deletion check for Author '{}' (ID: {}): No constraints"
+                        + " preventing deletion itself.",
                 author.getName(), author.getId());
     }
 
@@ -71,19 +73,23 @@ public class AuthorService extends BaseNamedEntityService<Author, AuthorDto, Aut
     // Override deleteInternal to handle build associations BEFORE deleting the author
     @Override // *** FIX: This override is now valid because base method is protected ***
     @Transactional // Ensure build modifications/deletions are in the same transaction
-    protected void deleteInternal(Author author) { // *** FIX: Method signature matches protected base method ***
-        logger.debug("Performing Author-specific pre-deletion steps for author ID: {}", author.getId());
+    public void deleteInternal(Author author) {
+        logger.debug("Performing Author-specific pre-deletion steps for author ID: {}",
+                author.getId());
         List<Build> builds = buildRepository.findBuildsByAuthorId(author.getId());
         boolean buildCacheInvalidated = false;
 
         for (Build build : builds) {
             buildCacheInvalidated = true; // Mark that build cache needs invalidation
-            String buildIdCacheKey = InMemoryCache.generateKey(StringConstants.BUILD, build.getId());
-            String buildNameCacheKey = InMemoryCache.generateKey(StringConstants.BUILD, build.getName());
+            String buildIdCacheKey = InMemoryCache.generateKey(StringConstants.BUILD,
+                    build.getId());
+            String buildNameCacheKey = InMemoryCache.generateKey(StringConstants.BUILD,
+                    build.getName());
 
             if (build.getAuthors().size() == 1 && build.getAuthors().contains(author)) {
                 // This is the last author, delete the build
-                logger.warn("Deleting Build ID {} ('{}') as its last author {} (ID {}) is being deleted.",
+                logger.warn("Deleting Build ID {} ('{}') as its last author {} (ID {}) is being "
+                                + "deleted.",
                         build.getId(), build.getName(), author.getName(), author.getId());
                 cache.evict(buildIdCacheKey);
                 cache.evict(buildNameCacheKey);
@@ -100,7 +106,8 @@ public class AuthorService extends BaseNamedEntityService<Author, AuthorDto, Aut
             }
         }
 
-        // Now call the base class deleteInternal to delete the author entity and handle author cache eviction
+        // Now call the base class deleteInternal to delete the author entity and handle author
+        // cache eviction
         super.deleteInternal(author); // *** FIX: This call is now valid ***
 
         // Evict build query caches if any builds were affected

@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/model/Color.java
 package sovok.mcbuildlibrary.model;
 
 import jakarta.persistence.Entity;

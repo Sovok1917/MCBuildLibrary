@@ -6,8 +6,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import sovok.mcbuildlibrary.model.Author;
 
-@Repository // Add @Repository for clarity, though not strictly necessary if component scanning is broad
-public interface AuthorRepository extends BaseNamedEntityRepository<Author> { // Extends BaseNamedEntityRepository
+@Repository // Add @Repository for clarity, though not strictly necessary
+// if component scanning is broad
+public interface AuthorRepository extends BaseNamedEntityRepository<Author> {
+    // Extends BaseNamedEntityRepository
 
     // findByName and findByNamesIgnoreCase are inherited
 

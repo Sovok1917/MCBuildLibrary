@@ -7,7 +7,8 @@ import org.springframework.stereotype.Repository;
 import sovok.mcbuildlibrary.model.Theme;
 
 @Repository
-public interface ThemeRepository extends BaseNamedEntityRepository<Theme> { // Extends BaseNamedEntityRepository
+public interface ThemeRepository extends BaseNamedEntityRepository<Theme> {
+    // ExtenAds BaseNamedEntityRepository
 
     // findByName and findByNamesIgnoreCase are inherited
 

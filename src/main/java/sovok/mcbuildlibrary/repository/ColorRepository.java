@@ -7,7 +7,8 @@ import org.springframework.stereotype.Repository;
 import sovok.mcbuildlibrary.model.Color;
 
 @Repository
-public interface ColorRepository extends BaseNamedEntityRepository<Color> { // Extends BaseNamedEntityRepository
+public interface ColorRepository extends BaseNamedEntityRepository<Color> {
+    // Extends BaseNamedEntityRepository
 
     // findByName and findByNamesIgnoreCase are inherited
 

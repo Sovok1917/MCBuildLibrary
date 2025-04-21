@@ -1,4 +1,3 @@
-// file: src/main/java/sovok/mcbuildlibrary/controller/BulkOperationsController.java
 package sovok.mcbuildlibrary.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,8 +50,9 @@ public class BulkOperationsController {
     @ApiResponses(value = {@ApiResponse(responseCode = "200", description
             = StringConstants.BULK_OPERATION_SUCCESS,
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = BulkCreateResponseDto.class))),
-            @ApiResponse(responseCode = "400", description = StringConstants.VALIDATION_FAILED_MESSAGE,
+                    schema = @Schema(implementation = BulkCreateResponseDto.class))), @ApiResponse(
+                            responseCode = "400", description
+            = StringConstants.VALIDATION_FAILED_MESSAGE,
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ValidationErrorResponse.class)))
     })
