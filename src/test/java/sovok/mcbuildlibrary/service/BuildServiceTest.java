@@ -1,4 +1,3 @@
-// file: src/test/java/sovok/mcbuildlibrary/service/BuildServiceTest.java
 package sovok.mcbuildlibrary.service;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -37,25 +36,16 @@ class BuildServiceTest {
     @Captor
     private ArgumentCaptor<Build> buildCaptor;
     @Captor
-    private ArgumentCaptor<String> stringCaptor;
-    @Captor
-    private ArgumentCaptor<Long> longCaptor;
-    @Captor
-    private ArgumentCaptor<Map<String, Object>> mapCaptor;
-
 
     private Build build1;
     private Build build2;
-    private Author author1;
-    private Theme theme1;
-    private Color color1;
 
 
     @BeforeEach
     void setUp() {
-        author1 = createTestAuthor(TEST_ID_1, AUTHOR_NAME_1);
-        theme1 = createTestTheme(TEST_ID_1, THEME_NAME_1);
-        color1 = createTestColor(TEST_ID_1, COLOR_NAME_1);
+        Author author1 = createTestAuthor(TEST_ID_1, AUTHOR_NAME_1);
+        Theme theme1 = createTestTheme(TEST_ID_1, THEME_NAME_1);
+        Color color1 = createTestColor(TEST_ID_1, COLOR_NAME_1);
 
         build1 = createTestBuild(TEST_ID_1, BUILD_NAME_1, Set.of(author1), Set.of(theme1), Set.of(color1));
         build2 = createTestBuild(TEST_ID_2, BUILD_NAME_2, Set.of(author1), Set.of(theme1), Set.of(color1));
@@ -81,10 +71,11 @@ class BuildServiceTest {
 
         verify(buildRepository).findByName(BUILD_NAME_1);
         verify(buildRepository).save(buildCaptor.capture());
-        assertThat(buildCaptor.getValue().getName()).isEqualTo(BUILD_NAME_1); // Check data passed to save
+        assertThat(buildCaptor.getValue().getName()).isEqualTo(BUILD_NAME_1);
+        // Check data passed to save
 
-        verify(cache).put(eq(BUILD_CACHE_KEY_ID_1), eq(createdBuild));
-        verify(cache).put(eq(BUILD_CACHE_KEY_NAME_1), eq(createdBuild));
+        verify(cache).put(BUILD_CACHE_KEY_ID_1, createdBuild));
+        verify(cache).put(BUILD_CACHE_KEY_NAME_1, createdBuild);
         verify(cache).evictQueryCacheByType(StringConstants.BUILD);
     }
 
@@ -92,14 +83,18 @@ class BuildServiceTest {
     @DisplayName("createBuild_whenNameExists_shouldThrowIllegalArgumentException")
     void createBuild_whenNameExists_shouldThrowIllegalArgumentException() {
         // Arrange
-        Build buildWithNoId = createTestBuild(null, BUILD_NAME_1, Set.of(), Set.of(), Set.of()); // Build data to be created
-        when(buildRepository.findByName(BUILD_NAME_1)).thenReturn(Optional.of(build1)); // Mock existing build found
+        Build buildWithNoId = createTestBuild(null, BUILD_NAME_1, Set.of(), Set.of(),
+                Set.of()); // Build data to be created
+        when(buildRepository.findByName(BUILD_NAME_1)).thenReturn(Optional.of(build1));
+        // Mock existing build found
 
         // Act & Assert
         assertThatThrownBy(() -> buildService.createBuild(buildWithNoId))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(String.format(StringConstants.RESOURCE_ALREADY_EXISTS_TEMPLATE,
-                        StringConstants.BUILD, StringConstants.WITH_NAME, BUILD_NAME_1, StringConstants.ALREADY_EXISTS_MESSAGE));
+                .hasMessageContaining(String.format(StringConstants
+                                .RESOURCE_ALREADY_EXISTS_TEMPLATE,
+                        StringConstants.BUILD, StringConstants.WITH_NAME, BUILD_NAME_1,
+                        StringConstants.ALREADY_EXISTS_MESSAGE));
 
         verify(buildRepository).findByName(BUILD_NAME_1);
         verify(buildRepository, never()).save(any());
@@ -143,7 +138,8 @@ class BuildServiceTest {
     @DisplayName("findBuildById_whenNotFound_shouldReturnEmpty") // Added for completeness
     void findBuildById_whenNotFound_shouldReturnEmpty() {
         // Arrange
-        when(cache.get(InMemoryCache.generateKey(StringConstants.BUILD, NON_EXISTENT_ID))).thenReturn(Optional.empty());
+        when(cache.get(InMemoryCache.generateKey(StringConstants.BUILD, NON_EXISTENT_ID)))
+                .thenReturn(Optional.empty());
         when(buildRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
 
         // Act

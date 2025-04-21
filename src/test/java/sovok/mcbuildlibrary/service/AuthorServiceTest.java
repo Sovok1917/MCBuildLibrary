@@ -406,7 +406,8 @@ class AuthorServiceTest {
     @DisplayName("findDtosByNameQuery_withNullName_shouldHandleNullInKeyAndQuery")
     void findDtosByNameQuery_withNullName_shouldHandleNullInKeyAndQuery() {
         // Arrange
-        String query = null;
+        // FIX 2: Add comment explaining why 'query = null' is intentional for this test
+        // Variable 'query' is intentionally null to test handling of null search parameters.
         Map<String, Object> params = Map.of(StringConstants.NAME_REQ_PARAM, "__NULL__"); // Expect null placeholder
         String queryKey = InMemoryCache.generateQueryKey(StringConstants.AUTHOR, params);
 
@@ -421,7 +422,7 @@ class AuthorServiceTest {
 
 
         // Act
-        List<AuthorDto> queryDtos = authorService.findDtosByNameQuery(query);
+        List<AuthorDto> queryDtos = authorService.findDtosByNameQuery(null);
 
         // Assert
         assertThat(queryDtos).hasSize(2);
@@ -822,36 +823,26 @@ class AuthorServiceTest {
     @DisplayName("createBulk_withOnlyInvalidNames_shouldSkipAllAndReturn")
     void createBulk_withOnlyInvalidNames_shouldSkipAllAndReturn() {
         // Arrange
-        // *** Use Arrays.asList() which allows nulls for input list ***
+        // Use Arrays.asList() which allows nulls for input list
         List<String> namesToCreate = Arrays.asList(null, "   ", "", null);
 
         // Act
         BulkCreationResult<String> result = authorService.createBulk(namesToCreate);
-        List<String> skippedItems = result.skippedItems(); // Get the actual skipped list
+        // Getting skippedItems here is fine, or you could assert on result.skippedItems() directly
+        List<String> skippedItems = result.skippedItems();
 
-        // Assert (Using manual checks to avoid AssertJ+List.of issues with null)
+        // Assert
         assertThat(result.createdItems())
                 .as("Created items list should be empty")
-                .isEmpty();
-        assertThat(skippedItems)
-                .as("Skipped items list should not be null")
-                .isNotNull();
-        assertThat(skippedItems)
-                .as("Skipped items list should contain 4 entries (nulls and blanks)")
-                .hasSize(4);
+                .isEmpty(); // Assertion on createdItems (separate subject)
 
-        boolean containsBlank = skippedItems.contains("   ");
-        boolean containsEmpty = skippedItems.contains("");
-        assertThat(containsBlank)
-                .as("Skipped items should contain blank string '   '")
-                .isTrue();
-        assertThat(containsEmpty)
-                .as("Skipped items should contain empty string ''")
-                .isTrue();
-        long nullCount = skippedItems.stream().filter(Objects::isNull).count();
-        assertThat(nullCount)
-                .as("Skipped items should contain correct number of nulls")
-                .isEqualTo(2);
+        // Chain all assertions related to skippedItems
+        assertThat(skippedItems)
+                .as("Skipped items list check") // Use one description for the whole chain
+                .isNotNull() // Check it's not null
+                .hasSize(4) // Check the size
+                // Check the exact content, allowing for any order and duplicates (like null)
+                .containsExactlyInAnyOrder(null, "   ", "", null);
 
         // Verify repository and cache were not interacted with
         verify(authorRepository, never()).findByNamesIgnoreCase(any());
