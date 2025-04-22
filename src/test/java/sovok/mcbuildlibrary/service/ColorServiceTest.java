@@ -1,4 +1,3 @@
-// file: src/test/java/sovok/mcbuildlibrary/service/ColorServiceTest.java
 package sovok.mcbuildlibrary.service;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -10,7 +9,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
 import sovok.mcbuildlibrary.dto.ColorDto;
-import sovok.mcbuildlibrary.dto.RelatedBuildDto;
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.model.Build;
@@ -40,13 +38,11 @@ class ColorServiceTest {
     private ColorService colorService;
 
     private Color color1;
-    private Color color2;
     private Build build1; // Assume this build uses color1
 
     @BeforeEach
     void setUp() {
         color1 = createTestColor(TEST_ID_1, COLOR_NAME_1);
-        color2 = createTestColor(TEST_ID_2, COLOR_NAME_2);
         Author authorStub = createTestAuthor(TEST_ID_1, AUTHOR_NAME_1);
         build1 = createTestBuild(TEST_ID_1, BUILD_NAME_1, Set.of(authorStub), Set.of(), Set.of(color1));
     }
@@ -67,8 +63,8 @@ class ColorServiceTest {
         assertThat(createdColor).isNotNull();
         assertThat(createdColor.getName()).isEqualTo(COLOR_NAME_1);
         verify(colorRepository).save(any(Color.class));
-        verify(cache).put(eq(COLOR_CACHE_KEY_ID_1), eq(createdColor));
-        verify(cache).put(eq(COLOR_CACHE_KEY_NAME_1), eq(createdColor));
+        verify(cache).put(COLOR_CACHE_KEY_ID_1, createdColor);
+        verify(cache).put(COLOR_CACHE_KEY_NAME_1, createdColor);
         verify(cache).evictQueryCacheByType(StringConstants.COLOR);
     }
 

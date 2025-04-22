@@ -74,7 +74,7 @@ class BuildServiceTest {
         assertThat(buildCaptor.getValue().getName()).isEqualTo(BUILD_NAME_1);
         // Check data passed to save
 
-        verify(cache).put(BUILD_CACHE_KEY_ID_1, createdBuild));
+        verify(cache).put(BUILD_CACHE_KEY_ID_1, createdBuild);
         verify(cache).put(BUILD_CACHE_KEY_NAME_1, createdBuild);
         verify(cache).evictQueryCacheByType(StringConstants.BUILD);
     }
@@ -206,7 +206,7 @@ class BuildServiceTest {
         verify(cache).evict(cacheKey);
         verify(buildRepository).findByName(requestedName);
         // Verify cache is updated with the correct key-value pair
-        verify(cache).put(eq(cacheKey), eq(build1));
+        verify(cache).put(cacheKey, build1);
     }
 
     @Test
@@ -250,31 +250,31 @@ class BuildServiceTest {
     void filterBuilds_whenNotCached_shouldQueryRepoAndCache() {
         // Arrange
         String authorQuery = "Auth";
-        String nameQuery = null;
         String themeQuery = "Theme";
-        String colorQuery = null;
         List<Build> repoResult = List.of(build1);
 
         Map<String, Object> params = new HashMap<>();
         params.put("author", authorQuery);
-        params.put("name", nameQuery);
+        params.put("name", null);
         params.put("theme", themeQuery);
-        params.put("color", colorQuery);
+        params.put("color", null);
         String queryKey = InMemoryCache.generateQueryKey(StringConstants.BUILD, params);
 
 
         when(cache.get(queryKey)).thenReturn(Optional.empty());
-        when(buildRepository.fuzzyFilterBuilds(authorQuery, nameQuery, themeQuery, colorQuery)).thenReturn(repoResult);
+        when(buildRepository.fuzzyFilterBuilds(authorQuery, null, themeQuery, null))
+                .thenReturn(repoResult);
 
 
         // Act
-        List<Build> filteredBuilds = buildService.filterBuilds(authorQuery, nameQuery, themeQuery, colorQuery);
+        List<Build> filteredBuilds = buildService.filterBuilds(authorQuery, null,
+                themeQuery, null);
 
 
         // Assert
         assertThat(filteredBuilds).isEqualTo(repoResult);
         verify(cache).get(queryKey);
-        verify(buildRepository).fuzzyFilterBuilds(authorQuery, nameQuery, themeQuery, colorQuery);
+        verify(buildRepository).fuzzyFilterBuilds(authorQuery, null, themeQuery, null);
         verify(cache).put(queryKey, repoResult);
     }
 
@@ -283,22 +283,21 @@ class BuildServiceTest {
     void filterBuilds_whenCached_shouldReturnCachedResult() {
         // Arrange
         String authorQuery = "Auth";
-        String nameQuery = null;
         String themeQuery = "Theme";
-        String colorQuery = null;
         List<Build> cachedResult = List.of(build1, build2);
 
         Map<String, Object> params = new HashMap<>();
         params.put("author", authorQuery);
-        params.put("name", nameQuery);
+        params.put("name", null);
         params.put("theme", themeQuery);
-        params.put("color", colorQuery);
+        params.put("color", null);
         String queryKey = InMemoryCache.generateQueryKey(StringConstants.BUILD, params);
 
         when(cache.get(queryKey)).thenReturn(Optional.of(cachedResult));
 
         // Act
-        List<Build> filteredBuilds = buildService.filterBuilds(authorQuery, nameQuery, themeQuery, colorQuery);
+        List<Build> filteredBuilds = buildService.filterBuilds(authorQuery, null,
+                themeQuery, null);
 
         // Assert
         assertThat(filteredBuilds).isEqualTo(cachedResult);
@@ -313,27 +312,27 @@ class BuildServiceTest {
         // Arrange
         String authorQuery = "NonExistentAuthor";
         String nameQuery = "NonExistentName";
-        String themeQuery = null;
-        String colorQuery = null;
         List<Build> repoResult = Collections.emptyList();
 
         Map<String, Object> params = new HashMap<>();
         params.put("author", authorQuery);
         params.put("name", nameQuery);
-        params.put("theme", themeQuery);
-        params.put("color", colorQuery);
+        params.put("theme", null);
+        params.put("color", null);
         String queryKey = InMemoryCache.generateQueryKey(StringConstants.BUILD, params);
 
         when(cache.get(queryKey)).thenReturn(Optional.empty());
-        when(buildRepository.fuzzyFilterBuilds(authorQuery, nameQuery, themeQuery, colorQuery)).thenReturn(repoResult);
+        when(buildRepository.fuzzyFilterBuilds(authorQuery, nameQuery, null, null))
+                .thenReturn(repoResult);
 
         // Act
-        List<Build> filteredBuilds = buildService.filterBuilds(authorQuery, nameQuery, themeQuery, colorQuery);
+        List<Build> filteredBuilds = buildService.filterBuilds(authorQuery, nameQuery,
+                null, null);
 
         // Assert
         assertThat(filteredBuilds).isEmpty();
         verify(cache).get(queryKey);
-        verify(buildRepository).fuzzyFilterBuilds(authorQuery, nameQuery, themeQuery, colorQuery);
+        verify(buildRepository).fuzzyFilterBuilds(authorQuery, nameQuery, null, null);
         // IMPORTANT: Verify that even an empty list gets cached to prevent repeated repo calls for the same query
         verify(cache).put(queryKey, repoResult);
     }
@@ -425,7 +424,6 @@ class BuildServiceTest {
         savedBuild.setDescription("Updated Desc");
         savedBuild.setScreenshots(List.of("new.png"));
         savedBuild.setSchemFile("new schem".getBytes());
-        String oldNameCacheKey = BUILD_CACHE_KEY_NAME_1;
         String newNameCacheKey = InMemoryCache.generateKey(StringConstants.BUILD, TEST_NAME_NEW);
         String idCacheKey = BUILD_CACHE_KEY_ID_1;
 
@@ -448,8 +446,8 @@ class BuildServiceTest {
         verify(buildRepository).save(buildCaptor.capture());
 
         // Cache Verifications
-        verify(cache).evict(eq(oldNameCacheKey));
-        verify(cache).put(eq(newNameCacheKey), eq(savedBuild));
+        verify(cache).evict(BUILD_CACHE_KEY_NAME_1);
+        verify(cache).put(newNameCacheKey, savedBuild);
         ArgumentCaptor<Build> idPutCaptor = ArgumentCaptor.forClass(Build.class);
         verify(cache, atLeastOnce()).put(eq(idCacheKey), idPutCaptor.capture());
         assertThat(idPutCaptor.getValue().getName()).isEqualTo(TEST_NAME_NEW);
@@ -499,9 +497,9 @@ class BuildServiceTest {
         assertThat(buildCaptor.getValue().getDescription()).isEqualTo("New Description Same Name");
 
         // Cache Verifications
-        verify(cache, never()).evict(eq(nameCacheKey)); // Should NOT evict name cache if name didn't change
+        verify(cache, never()).evict(nameCacheKey); // Should NOT evict name cache if name didn't change
         // Should update the name cache with the new data, even if name is the same
-        verify(cache).put(eq(nameCacheKey), eq(savedBuild));
+        verify(cache).put(nameCacheKey, savedBuild);
         // Should update the ID cache (at least once)
         ArgumentCaptor<Build> idPutCaptor = ArgumentCaptor.forClass(Build.class);
         verify(cache, atLeastOnce()).put(eq(idCacheKey), idPutCaptor.capture());

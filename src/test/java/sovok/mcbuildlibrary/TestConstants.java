@@ -2,8 +2,6 @@ package sovok.mcbuildlibrary;
 
 import java.util.List;
 import java.util.Set;
-import sovok.mcbuildlibrary.dto.BulkCreateRequestDto;
-import sovok.mcbuildlibrary.dto.RelatedBuildDto;
 import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.model.Build;
 import sovok.mcbuildlibrary.model.Color;
@@ -21,8 +19,6 @@ public final class TestConstants {
     public static final Long TEST_ID_1 = 1L;
     public static final Long TEST_ID_2 = 2L;
     public static final Long TEST_ID_3 = 3L;
-    public static final String TEST_NAME_1 = "TestName1";
-    public static final String TEST_NAME_2 = "TestName2";
     public static final String TEST_NAME_NEW = "NewTestName";
     public static final String TEST_NAME_NON_EXISTENT = "NonExistentName";
     public static final Long NON_EXISTENT_ID = 999L;
@@ -35,11 +31,9 @@ public final class TestConstants {
 
     // --- Theme Specific ---
     public static final String THEME_NAME_1 = "ThemeOne";
-    public static final String THEME_NAME_2 = "ThemeTwo";
 
     // --- Color Specific ---
     public static final String COLOR_NAME_1 = "ColorOne";
-    public static final String COLOR_NAME_2 = "ColorTwo";
 
     // --- Build Specific ---
     public static final String BUILD_NAME_1 = "BuildOne";
@@ -59,9 +53,6 @@ public final class TestConstants {
     public static final String BUILD_CACHE_KEY_NAME_1 = "Build::" + BUILD_NAME_1;
 
     // --- DTOs ---
-    public static final List<RelatedBuildDto> RELATED_BUILD_DTOS = List.of(
-            new RelatedBuildDto(TEST_ID_1, BUILD_NAME_1));
-
     // --- Helper Methods for Creating Test Objects ---
     public static Author createTestAuthor(Long id, String name) {
         return Author.builder().id(id).name(name).build();
@@ -88,7 +79,4 @@ public final class TestConstants {
                 .build();
     }
 
-    public static BulkCreateRequestDto.NameDto createNameDto(String name) {
-        return new BulkCreateRequestDto.NameDto(name);
-    }
 }

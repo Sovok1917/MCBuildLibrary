@@ -1,4 +1,3 @@
-// file: src/test/java/sovok/mcbuildlibrary/service/ThemeServiceTest.java
 package sovok.mcbuildlibrary.service;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -9,7 +8,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
-import sovok.mcbuildlibrary.dto.RelatedBuildDto;
 import sovok.mcbuildlibrary.dto.ThemeDto;
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.model.Author;
@@ -41,13 +39,11 @@ class ThemeServiceTest {
     private ThemeService themeService;
 
     private Theme theme1;
-    private Theme theme2;
     private Build build1; // Assume this build uses theme1
 
     @BeforeEach
     void setUp() {
         theme1 = createTestTheme(TEST_ID_1, THEME_NAME_1);
-        theme2 = createTestTheme(TEST_ID_2, THEME_NAME_2);
         Author authorStub = createTestAuthor(TEST_ID_1, AUTHOR_NAME_1);
         build1 = createTestBuild(TEST_ID_1, BUILD_NAME_1, Set.of(authorStub), Set.of(theme1), Set.of());
     }
@@ -68,8 +64,8 @@ class ThemeServiceTest {
         assertThat(createdTheme).isNotNull();
         assertThat(createdTheme.getName()).isEqualTo(THEME_NAME_1);
         verify(themeRepository).save(any(Theme.class));
-        verify(cache).put(eq(THEME_CACHE_KEY_ID_1), eq(createdTheme));
-        verify(cache).put(eq(THEME_CACHE_KEY_NAME_1), eq(createdTheme));
+        verify(cache).put(THEME_CACHE_KEY_ID_1, createdTheme);
+        verify(cache).put(THEME_CACHE_KEY_NAME_1, createdTheme);
         verify(cache).evictQueryCacheByType(StringConstants.THEME);
     }
 
