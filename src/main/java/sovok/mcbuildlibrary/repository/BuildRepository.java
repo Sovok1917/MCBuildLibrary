@@ -15,8 +15,8 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
         String getName();
     }
 
-    // Updated Query: Accepts single :color, uses SIMILARITY directly
-    @Query(value = "SELECT DISTINCT b.* FROM build b " // Use DISTINCT or GROUP BY
+
+    @Query(value = "SELECT DISTINCT b.* FROM build b "
             + "LEFT JOIN build_authors ba ON b.id = ba.build_id "
             + "LEFT JOIN author a ON ba.author_id = a.id "
             + "LEFT JOIN build_themes bt ON b.id = bt.build_id "
@@ -27,7 +27,7 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
             + "AND (:name IS NULL OR SIMILARITY(b.name, :name) > 0.3) "
             + "AND (:theme IS NULL OR SIMILARITY(t.name, :theme) > 0.3) "
             + "AND (:color IS NULL OR SIMILARITY(c.name, :color) > 0.3) "
-            + "GROUP BY b.id", // Keep GROUP BY for author/theme joins
+            + "GROUP BY b.id",
             nativeQuery = true)
     List<Build> fuzzyFilterBuilds(
             @Param("author") String author,

@@ -8,7 +8,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy; // Keep Lazy for self-injection
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
@@ -25,17 +25,17 @@ public class BuildService {
     private final BuildRepository buildRepository;
     private final InMemoryCache cache;
 
-    // <<< FIX: Re-introduced self-injection mechanism >>>
+
     private BuildService self;
 
-    // Use setter injection with @Lazy to handle the bean proxy creation order
+
     @Autowired
     @Lazy
     public void setSelf(BuildService self) {
         this.self = self;
     }
 
-    // Constructor Injection for mandatory dependencies
+
     public BuildService(BuildRepository buildRepository, InMemoryCache cache) {
         this.buildRepository = buildRepository;
         this.cache = cache;
@@ -119,7 +119,7 @@ public class BuildService {
 
     @Transactional(readOnly = true)
     public Optional<byte[]> getSchemFile(Long id) {
-        // <<< FIX: Call findBuildById via self-injected proxy >>>
+
         return self.findBuildById(id)
                 .map(Build::getSchemFile)
                 .filter(schemBytes -> schemBytes.length > 0);
@@ -127,7 +127,7 @@ public class BuildService {
 
     @Transactional
     public Build updateBuild(Long id, Build updatedBuildData) {
-        // <<< FIX: Call findBuildById via self-injected proxy >>>
+
         Build existingBuild = self.findBuildById(id)
                 .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
@@ -179,7 +179,7 @@ public class BuildService {
 
     @Transactional
     public void deleteBuild(Long id) {
-        // <<< FIX: Call findBuildById via self-injected proxy >>>
+
         Build build = self.findBuildById(id)
                 .orElseThrow(() -> new NoSuchElementException(String.format(
                         StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,

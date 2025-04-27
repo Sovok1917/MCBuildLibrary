@@ -1,3 +1,4 @@
+// file: src/test/java/sovok/mcbuildlibrary/service/AuthorServiceTest.java
 package sovok.mcbuildlibrary.service;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -57,6 +58,7 @@ class AuthorServiceTest {
         author1 = createTestAuthor(TEST_ID_1, AUTHOR_NAME_1);
         author2 = createTestAuthor(TEST_ID_2, AUTHOR_NAME_2);
 
+        // Use HashSet for mutable set required by service logic
         build1 = createTestBuild(TEST_ID_1, BUILD_NAME_1, new HashSet<>(Set.of(author1, author2)), Set.of(), Set.of());
         build2OnlyAuthor1 = createTestBuild(TEST_ID_2, BUILD_NAME_2, new HashSet<>(Set.of(author1)), Set.of(), Set.of());
     }
@@ -248,6 +250,15 @@ class AuthorServiceTest {
                     public String getName() {
                         return build1.getName();
                     }
+                },
+                new BuildRepository.BuildIdAndName() { // Anonymous inner class for interface
+                    public Long getId() {
+                        return build2OnlyAuthor1.getId();
+                    }
+
+                    public String getName() {
+                        return build2OnlyAuthor1.getName();
+                    }
                 }
         );
         // Mock findById behavior (which may involve cache or repo)
@@ -265,7 +276,10 @@ class AuthorServiceTest {
         assertThat(foundDto.get().id()).isEqualTo(TEST_ID_1);
         assertThat(foundDto.get().name()).isEqualTo(AUTHOR_NAME_1);
         assertThat(foundDto.get().relatedBuilds())
-                .containsExactly(new RelatedBuildDto(build1.getId(), build1.getName()));
+                .containsExactlyInAnyOrder(
+                        new RelatedBuildDto(build1.getId(), build1.getName()),
+                        new RelatedBuildDto(build2OnlyAuthor1.getId(), build2OnlyAuthor1.getName())
+                );
 
         // Verify underlying findById was called (and potentially cached)
         verify(authorRepository).findById(TEST_ID_1);
@@ -305,9 +319,29 @@ class AuthorServiceTest {
                     public String getName() {
                         return build1.getName();
                     }
+                },
+                new BuildRepository.BuildIdAndName() {
+                    public Long getId() {
+                        return build2OnlyAuthor1.getId();
+                    }
+
+                    public String getName() {
+                        return build2OnlyAuthor1.getName();
+                    }
                 }
         );
-        List<BuildRepository.BuildIdAndName> relatedBuilds2 = List.of(); // Author 2 has no builds in this setup
+        // Author 2 is only in build1
+        List<BuildRepository.BuildIdAndName> relatedBuilds2 = List.of(
+                new BuildRepository.BuildIdAndName() {
+                    public Long getId() {
+                        return build1.getId();
+                    }
+
+                    public String getName() {
+                        return build1.getName();
+                    }
+                }
+        );
 
 
         when(authorRepository.findAll()).thenReturn(List.of(author1, author2));
@@ -322,20 +356,34 @@ class AuthorServiceTest {
         assertThat(allDtos).hasSize(2);
         assertThat(allDtos.get(0).id()).isEqualTo(TEST_ID_1);
         assertThat(allDtos.get(0).name()).isEqualTo(AUTHOR_NAME_1);
-        assertThat(allDtos.get(0).relatedBuilds()).hasSize(1);
-        assertThat(allDtos.get(0).relatedBuilds().get(0).id()).isEqualTo(build1.getId());
+        assertThat(allDtos.get(0).relatedBuilds()).hasSize(2);
+        assertThat(allDtos.get(0).relatedBuilds()).containsExactlyInAnyOrder(
+                new RelatedBuildDto(build1.getId(), build1.getName()),
+                new RelatedBuildDto(build2OnlyAuthor1.getId(), build2OnlyAuthor1.getName())
+        );
 
 
         assertThat(allDtos.get(1).id()).isEqualTo(TEST_ID_2);
         assertThat(allDtos.get(1).name()).isEqualTo(AUTHOR_NAME_2);
-        assertThat(allDtos.get(1).relatedBuilds()).isEmpty();
+        assertThat(allDtos.get(1).relatedBuilds()).hasSize(1); // Author 2 is only in build1
+        assertThat(allDtos.get(1).relatedBuilds()).containsExactly(
+                new RelatedBuildDto(build1.getId(), build1.getName())
+        );
+
 
         verify(authorRepository).findAll();
         verify(buildRepository).findBuildIdAndNameByAuthorId(TEST_ID_1);
         verify(buildRepository).findBuildIdAndNameByAuthorId(TEST_ID_2);
+
         // Verify getAll cache is NOT used (as per service implementation)
-        verify(cache, never()).get(InMemoryCache.generateKey(StringConstants.AUTHOR, "ALL"));
-        verify(cache, never()).put(InMemoryCache.generateKey(StringConstants.AUTHOR, "ALL"), any());
+        String allCacheKey = InMemoryCache.generateKey(StringConstants.AUTHOR, "ALL");
+        verify(cache, never()).get(allCacheKey); // Use eq() matcher
+
+        // --- FIX: Use eq() matcher for the first argument ---
+        // This was the line causing the error (line 383 in the previous stack trace)
+
+        verify(cache, never()).put(eq(allCacheKey), any()); // Use eq() for the first argument
+        // --- End Fix ---
     }
 
 
@@ -406,7 +454,6 @@ class AuthorServiceTest {
     @DisplayName("findDtosByNameQuery_withNullName_shouldHandleNullInKeyAndQuery")
     void findDtosByNameQuery_withNullName_shouldHandleNullInKeyAndQuery() {
         // Arrange
-        // FIX 2: Add comment explaining why 'query = null' is intentional for this test
         // Variable 'query' is intentionally null to test handling of null search parameters.
         Map<String, Object> params = Map.of(StringConstants.NAME_REQ_PARAM, "__NULL__"); // Expect null placeholder
         String queryKey = InMemoryCache.generateQueryKey(StringConstants.AUTHOR, params);
@@ -750,7 +797,7 @@ class AuthorServiceTest {
 
         // Assert
         assertThat(result).isEqualTo(newlyCreatedAuthor);
-        verify(authorRepository, times(2)).findByName(newName);
+        verify(authorRepository, times(2)).findByName(newName); // Called once in findByName, once in create
         verify(authorRepository).save(authorCaptor.capture());
         assertThat(authorCaptor.getValue().getName()).isEqualTo(newName);
         verify(cache).put(InMemoryCache.generateKey(StringConstants.AUTHOR, newlyCreatedAuthor.getId()), newlyCreatedAuthor);
@@ -766,11 +813,16 @@ class AuthorServiceTest {
         Set<String> uniqueLowerNames = Set.of(AUTHOR_NAME_1.toLowerCase(), AUTHOR_NAME_2.toLowerCase(), AUTHOR_NAME_3.toLowerCase());
         Set<Author> existingAuthors = Set.of(author1);
 
-        Author author3 = createTestAuthor(TEST_ID_3, AUTHOR_NAME_3);
-        List<Author> savedEntities = List.of(author2, author3);
+
+        // Mock saveAll to return entities corresponding to the names *actually* being created
+        List<Author> savedEntities = List.of(
+                createTestAuthor(TEST_ID_2, AUTHOR_NAME_2), // Simulate author2 being saved
+                createTestAuthor(TEST_ID_3, AUTHOR_NAME_3)  // Simulate author3 being saved
+        );
 
 
         when(authorRepository.findByNamesIgnoreCase(uniqueLowerNames)).thenReturn(existingAuthors);
+        // Use anyList() as the exact list passed might depend on internal logic, but verify content later
         when(authorRepository.saveAll(anyList())).thenReturn(savedEntities);
 
 
@@ -788,10 +840,11 @@ class AuthorServiceTest {
         assertThat(authorsPassedToSaveAll).hasSize(2);
         assertThat(authorsPassedToSaveAll.stream().map(Author::getName)).containsExactlyInAnyOrder(AUTHOR_NAME_2, AUTHOR_NAME_3);
 
-        verify(cache).put(InMemoryCache.generateKey(StringConstants.AUTHOR, author2.getId()), author2);
-        verify(cache).put(InMemoryCache.generateKey(StringConstants.AUTHOR, author2.getName()), author2);
-        verify(cache).put(InMemoryCache.generateKey(StringConstants.AUTHOR, author3.getId()), author3);
-        verify(cache).put(InMemoryCache.generateKey(StringConstants.AUTHOR, author3.getName()), author3);
+        // Verify caching for the *saved* entities
+        verify(cache).put(InMemoryCache.generateKey(StringConstants.AUTHOR, TEST_ID_2), savedEntities.get(0));
+        verify(cache).put(InMemoryCache.generateKey(StringConstants.AUTHOR, AUTHOR_NAME_2), savedEntities.get(0));
+        verify(cache).put(InMemoryCache.generateKey(StringConstants.AUTHOR, TEST_ID_3), savedEntities.get(1));
+        verify(cache).put(InMemoryCache.generateKey(StringConstants.AUTHOR, AUTHOR_NAME_3), savedEntities.get(1));
 
         verify(cache).evictQueryCacheByType(StringConstants.AUTHOR);
     }
@@ -949,8 +1002,10 @@ class AuthorServiceTest {
         assertThat(dto.id()).isEqualTo(author1.getId());
         assertThat(dto.name()).isEqualTo(author1.getName());
         assertThat(dto.relatedBuilds()).hasSize(2);
-        assertThat(dto.relatedBuilds().get(0)).isEqualTo(new RelatedBuildDto(build1.getId(), build1.getName()));
-        assertThat(dto.relatedBuilds().get(1)).isEqualTo(new RelatedBuildDto(build2OnlyAuthor1.getId(), build2OnlyAuthor1.getName()));
+        assertThat(dto.relatedBuilds()).containsExactlyInAnyOrder(
+                new RelatedBuildDto(build1.getId(), build1.getName()),
+                new RelatedBuildDto(build2OnlyAuthor1.getId(), build2OnlyAuthor1.getName())
+        );
 
 
         verify(buildRepository).findBuildIdAndNameByAuthorId(author1.getId());
@@ -972,8 +1027,12 @@ class AuthorServiceTest {
     void checkDeletionConstraints_forAuthor_shouldDoNothing() {
         // Arrange
         // Act
+        // This method is protected, but we can call it directly on the service instance in the test
+        // It's designed to be overridden, and the base implementation does nothing.
+        // In AuthorService, the override also does nothing (no exception thrown).
         authorService.checkDeletionConstraints(author1);
         // Assert
+        // No exception should be thrown, and no repository/cache interactions expected from this specific method call.
         verify(authorRepository, never()).delete(any());
         verify(cache, never()).evict(anyString());
     }

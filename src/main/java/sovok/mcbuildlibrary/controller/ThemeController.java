@@ -53,7 +53,6 @@ public class ThemeController extends BaseNamedEntityController<Theme, ThemeDto, 
         return "2 or Medieval";
     }
 
-    // --- Optional Overrides for OpenAPI Schema Specificity ---
 
     @Override
     @PostMapping
@@ -148,6 +147,4 @@ public class ThemeController extends BaseNamedEntityController<Theme, ThemeDto, 
             @RequestParam(value = StringConstants.NAME_REQ_PARAM, required = false) String name) {
         return super.getEntitiesByQuery(name);
     }
-
-    // Delete uses base implementation
 }

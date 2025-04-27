@@ -27,15 +27,6 @@ import sovok.mcbuildlibrary.model.BaseNamedEntity;
 import sovok.mcbuildlibrary.service.BaseNamedEntityService;
 import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 
-/**
- * Abstract base controller for entities extending BaseNamedEntity.
- * Provides common REST endpoints for CRUD operations and querying.
- * Subclasses must define @RequestMapping, @Tag, and inject the specific Service.
- *
- * @param <T>   The specific entity type (e.g., Author).
- * @param <D> The specific D type (e.g., AuthorDto).
- * @param <S>   The specific service type (e.g., AuthorService).
- */
 @Validated
 public abstract class BaseNamedEntityController<
         T extends BaseNamedEntity,
@@ -103,7 +94,7 @@ public abstract class BaseNamedEntityController<
     public ResponseEntity<D> getEntityByIdentifier(
             @Parameter(description = "ID or exact name of the entity", required = true)
             @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier) {
-        D dto = findDtoByIdentifier(identifier); // Use the fixed helper
+        D dto = findDtoByIdentifier(identifier);
         return ResponseEntity.ok(dto);
     }
 
@@ -176,14 +167,8 @@ public abstract class BaseNamedEntityController<
         return ResponseEntity.ok(dtos);
     }
 
-    // --- Helper Methods ---
 
-    /**
-     * Finds the entity D by ID or name. Throws NoSuchElementException if not found.
-     *
-     * @param identifier ID or name.
-     * @return The found D.
-     */
+
     protected D findDtoByIdentifier(String identifier) {
         try {
             Long entityId = Long.valueOf(identifier);
@@ -193,24 +178,17 @@ public abstract class BaseNamedEntityController<
                                     getEntityTypeName(), StringConstants.WITH_ID, identifier,
                                     StringConstants.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
-            // *** FIX: Use the public convertToDto method from the service ***
+
             T entity = service.findByName(identifier)
                     .orElseThrow(() -> new NoSuchElementException(
                             String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                                     getEntityTypeName(), StringConstants.WITH_NAME, identifier,
                                     StringConstants.NOT_FOUND_MESSAGE)));
-            // This call is now valid because convertToDto is public in the service
+
             return service.convertToDto(entity);
         }
     }
 
-    /**
-     * Finds the raw entity T by ID or name. Throws NoSuchElementException if not found.
-     * Useful for update/delete operations that need the entity itself.
-     *
-     * @param identifier ID or name.
-     * @return The found entity T.
-     */
     protected T findEntityByIdentifier(String identifier) {
         try {
             Long entityId = Long.valueOf(identifier);

@@ -8,7 +8,7 @@ import jakarta.persistence.MappedSuperclass;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.util.Objects;
-import lombok.AccessLevel; // Import if needed for constructor below
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,9 +23,8 @@ import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 @Getter
 @Setter
 @ToString
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // Keep protected no-arg constructor for JPA
-// on potential direct use/subclassing
-@AllArgsConstructor // Keep AllArgsConstructor if needed for other parts or testing
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 @SuperBuilder
 public abstract class BaseNamedEntity {
 

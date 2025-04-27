@@ -66,27 +66,24 @@ public class BuildController {
         this.colorService = colorService;
     }
 
-    // Helper method - no Swagger needed
     private Build createBuildFromParams(String name, List<String> authorNames,
                                         List<String> themeNames,
                                         String description, List<String> colorNames,
                                         List<String> screenshots,
                                         MultipartFile schemFile) throws IOException {
 
-        // *** FIX: Use the inherited findOrCreate method reference ***
         Set<Author> authors = authorNames.stream()
-                .map(authorService::findOrCreate) // Use base method
+                .map(authorService::findOrCreate)
                 .collect(Collectors.toSet());
         Set<Theme> themes = themeNames.stream()
-                .map(themeService::findOrCreate) // Use base method
+                .map(themeService::findOrCreate)
                 .collect(Collectors.toSet());
         Set<Color> colors = colorNames.stream()
-                .map(colorService::findOrCreate) // Use base method
+                .map(colorService::findOrCreate)
                 .collect(Collectors.toSet());
 
         byte[] schemBytes = (schemFile != null && !schemFile.isEmpty()) ? schemFile.getBytes()
                 : null;
-        // Optional: Add more robust error handling for getBytes()
         if (schemBytes == null && schemFile != null && !schemFile.isEmpty()) {
             throw new IOException("Failed to read bytes from schematic file: " + schemFile
                     .getOriginalFilename());
@@ -99,7 +96,7 @@ public class BuildController {
                 .themes(themes)
                 .description(description)
                 .colors(colors)
-                .screenshots(screenshots != null ? screenshots : List.of()) // Default to empty list
+                .screenshots(screenshots != null ? screenshots : List.of())
                 .schemFile(schemBytes)
                 .build();
     }
@@ -122,7 +119,7 @@ public class BuildController {
             @Parameter(description = "Unique name for the build", required = true, example
                     = "MyAwesomeCastle")
             @RequestParam(StringConstants.NAME_REQ_PARAM) @NotBlank
-            @Size(min = 3, message = StringConstants.NAME_SIZE) // Use generic Size message
+            @Size(min = 3, message = StringConstants.NAME_SIZE)
             @NotPurelyNumeric(message = StringConstants.NAME_NOT_ONLY_NUMERIC)
             String name,
 
@@ -358,15 +355,13 @@ public class BuildController {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        // Sanitize filename - replace non-alphanumeric (excluding -, _, .) with _, remove slashes
         String filename = build.getName().replaceAll("[^a-zA-Z0-9-_.]+", "_")
                 .replaceAll("[\\\\/]", "_") + ".schem";
-        headers.setContentDispositionFormData("attachment", filename); // Use standard method
+        headers.setContentDispositionFormData("attachment", filename);
         headers.setContentLength(schemFileBytes.length);
         return new ResponseEntity<>(schemFileBytes, headers, HttpStatus.OK);
     }
 
-    // Helper method - no Swagger needed
     private Build findBuildByIdentifier(String identifier) {
         try {
             Long buildId = Long.valueOf(identifier);
@@ -376,7 +371,7 @@ public class BuildController {
                                     StringConstants.BUILD, StringConstants.WITH_ID, identifier,
                                     StringConstants.NOT_FOUND_MESSAGE)));
         } catch (NumberFormatException e) {
-            return buildService.findByName(identifier) // findByName usually returns Optional<Build>
+            return buildService.findByName(identifier)
                     .orElseThrow(() -> new NoSuchElementException(
                             String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
                                     StringConstants.BUILD, StringConstants.WITH_NAME, identifier,

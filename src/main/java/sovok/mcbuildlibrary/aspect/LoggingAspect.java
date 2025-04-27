@@ -1,7 +1,6 @@
 package sovok.mcbuildlibrary.aspect;
 
 import java.util.Arrays;
-// Removed NoSuchElementException, IllegalStateException imports as we won't catch them here anymore
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.AfterThrowing;
@@ -12,48 +11,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/**
- * Aspect for logging execution of specific Spring components.
- * Now includes Repository, Service, RestController, and Component annotated beans.
- */
 @Aspect
 @Component
 public class LoggingAspect {
 
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
-    /**
-     * Pointcut that matches all repositories, services, controllers,
-     * and general components within the application's defined packages.
-     */
     @Pointcut("within(@org.springframework.stereotype.Repository *)"
             + " || within(@org.springframework.stereotype.Service *)"
             + " || within(@org.springframework.web.bind.annotation.RestController *)"
             + " || within(@org.springframework.stereotype.Component *)")
     public void springBeanPointcut() {
-        // Method is empty as this is just a Pointcut definition.
+
     }
 
-    /**
-     * Pointcut that matches all Spring beans within the application's main packages.
-     */
     @Pointcut("within(sovok.mcbuildlibrary..*)")
     public void applicationPackagePointcut() {
-        // Method is empty as this is just a Pointcut definition.
+
     }
 
-    /**
-     * Advice that logs methods throwing exceptions. Applied AFTER the exception is thrown.
-     * Lets GlobalExceptionHandler handle the HTTP response.
-     * Applied to methods matching both application package and Spring bean pointcuts.
-     *
-     * @param joinPoint join point for advice.
-     * @param e         exception.
-     */
     @AfterThrowing(pointcut = "applicationPackagePointcut() && springBeanPointcut()",
             throwing = "e")
     public void logAfterThrowing(JoinPoint joinPoint, Throwable e) {
-        // Log based on the exception type - client errors vs server errors
+
         if (e instanceof jakarta.validation.ConstraintViolationException
                 || e instanceof IllegalArgumentException
                 || e instanceof java.util.NoSuchElementException
@@ -66,31 +46,21 @@ public class LoggingAspect {
                 || e instanceof org.springframework.web.multipart.support
                 .MissingServletRequestPartException) {
 
-            // Log client-side errors (like validation) typically as WARN
             log.warn("Client Error in {}.{}() - Exception: {}, Message: '{}'",
                     joinPoint.getSignature().getDeclaringTypeName(),
                     joinPoint.getSignature().getName(),
                     e.getClass().getSimpleName(),
                     e.getMessage());
         } else {
-            // Log unexpected server-side errors as ERROR with stack trace
             log.error("Exception in {}.{}() with cause = '{}' and exception = '{}'",
                     joinPoint.getSignature().getDeclaringTypeName(),
                     joinPoint.getSignature().getName(),
                     e.getCause() != null ? e.getCause() : "NULL",
-                    e.getMessage(), // Log the exception message
-                    e); // Log the full exception stack trace via SLF4j parameter substitution
+                    e.getMessage(),
+                    e);
         }
     }
 
-    /**
-     * Advice that logs when a method is entered and exited, and measures execution time.
-     * It allows exceptions to propagate naturally to be handled by GlobalExceptionHandler.
-     *
-     * @param joinPoint join point for advice.
-     * @return result of the wrapped method.
-     * @throws Throwable propagates exceptions from the wrapped method.
-     */
     @Around("applicationPackagePointcut() && springBeanPointcut()")
     public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
         long startTime = System.currentTimeMillis();
@@ -103,7 +73,7 @@ public class LoggingAspect {
         }
 
         try {
-            // Proceed with the original method execution
+
             Object result = joinPoint.proceed();
             long endTime = System.currentTimeMillis();
 
@@ -116,17 +86,17 @@ public class LoggingAspect {
             }
             return result;
         } catch (Throwable t) {
-            // *** FIX: Removed the catch blocks that wrapped exceptions ***
-            // Just log timing on failure if needed (optional) and re-throw
+
+
             long endTime = System.currentTimeMillis();
-            // Use the @AfterThrowing advice to log the exception details appropriately.
-            // We might still log a simple timing message here if desired.
-            log.debug("Method {}.{}() threw exception after {} ms", // Log as debug or trace
+
+
+            log.debug("Method {}.{}() threw exception after {} ms",
                     joinPoint.getSignature().getDeclaringTypeName(),
                     joinPoint.getSignature().getName(),
                     endTime - startTime);
 
-            throw t; // *** IMPORTANT: Re-throw the original exception ***
+            throw t;
         }
     }
 }

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class BulkCreateResponseDto {
 
     private List<String> createdAuthors;
-    private List<String> skippedAuthors; // Names that already existed
+    private List<String> skippedAuthors;
 
     private List<String> createdThemes;
     private List<String> skippedThemes;

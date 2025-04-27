@@ -53,7 +53,6 @@ public class ColorController extends BaseNamedEntityController<Color, ColorDto, 
     }
 
 
-    // --- Optional Overrides for OpenAPI Schema Specificity ---
 
     @Override
     @PostMapping
@@ -147,6 +146,4 @@ public class ColorController extends BaseNamedEntityController<Color, ColorDto, 
             @RequestParam(value = StringConstants.NAME_REQ_PARAM, required = false) String name) {
         return super.getEntitiesByQuery(name);
     }
-
-    // Delete uses base implementation
 }

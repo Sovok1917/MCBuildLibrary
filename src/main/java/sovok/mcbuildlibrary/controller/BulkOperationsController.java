@@ -63,7 +63,6 @@ public class BulkOperationsController {
                     required = true)
             @Valid @RequestBody BulkCreateRequestDto requestDto) {
 
-        // *** FIX: Use the inherited createBulk method reference ***
         BulkCreationResult<String> authorResult = processBulkCreation(requestDto.getAuthors(),
                 authorService::createBulk); // Use base method
         BulkCreationResult<String> themeResult = processBulkCreation(requestDto.getThemes(),

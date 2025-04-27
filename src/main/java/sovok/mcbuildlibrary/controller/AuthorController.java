@@ -23,16 +23,16 @@ import sovok.mcbuildlibrary.model.Author;
 import sovok.mcbuildlibrary.service.AuthorService;
 
 @RestController
-@RequestMapping(StringConstants.AUTHORS_ENDPOINT) // Define specific path here
-@Tag(name = StringConstants.AUTHORS, description = "API for managing build authors") // Specific Tag
+@RequestMapping(StringConstants.AUTHORS_ENDPOINT)
+@Tag(name = StringConstants.AUTHORS, description = "API for managing build authors")
 public class AuthorController extends BaseNamedEntityController<Author, AuthorDto, AuthorService> {
 
-    @Autowired // Constructor injection via base class
+    @Autowired
     public AuthorController(AuthorService authorService) {
         super(authorService);
     }
 
-    // --- Implement abstract methods from base controller ---
+
 
     @Override
     protected String getEntityTypeName() {
@@ -46,15 +46,15 @@ public class AuthorController extends BaseNamedEntityController<Author, AuthorDt
 
     @Override
     protected String getEntityNameExample() {
-        return "BuilderBob"; // Specific example
+        return "BuilderBob";
     }
 
     @Override
     protected String getEntityIdentifierExample() {
-        return "1 or BuilderBob"; // Specific example
+        return "1 or BuilderBob";
     }
 
-    // --- Override endpoints only if specific annotations/logic needed ---
+
 
     @Override
     @PostMapping
@@ -152,5 +152,5 @@ public class AuthorController extends BaseNamedEntityController<Author, AuthorDt
         return super.getEntitiesByQuery(name);
     }
 
-    // Delete uses base implementation
+
 }

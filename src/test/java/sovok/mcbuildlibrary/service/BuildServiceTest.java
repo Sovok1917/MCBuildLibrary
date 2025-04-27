@@ -1,3 +1,4 @@
+// file: src/test/java/sovok/mcbuildlibrary/service/BuildServiceTest.java
 package sovok.mcbuildlibrary.service;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -35,10 +36,11 @@ class BuildServiceTest {
 
     @Captor
     private ArgumentCaptor<Build> buildCaptor;
-    @Captor
 
+    // --- FIX: Remove @Captor from these fields ---
     private Build build1;
     private Build build2;
+    // --- End Fix ---
 
 
     @BeforeEach
@@ -49,10 +51,14 @@ class BuildServiceTest {
 
         build1 = createTestBuild(TEST_ID_1, BUILD_NAME_1, Set.of(author1), Set.of(theme1), Set.of(color1));
         build2 = createTestBuild(TEST_ID_2, BUILD_NAME_2, Set.of(author1), Set.of(theme1), Set.of(color1));
+
+        // *** FIX: Initialize self-injection for tests involving internal calls ***
+        // This simulates the @Lazy setter injection behavior for tests
+        // where methods like updateBuild call findBuildById internally.
+        buildService.setSelf(buildService);
     }
 
     // --- Existing Tests (createBuild, findById, findAll, some findByName, filterBuilds, some getSchemFile, some update, delete) ---
-    // ... (Keep all previously passing tests here) ...
 
     @Test
     @DisplayName("createBuild_whenNameDoesNotExist_shouldSaveAndCache")
@@ -342,16 +348,18 @@ class BuildServiceTest {
     @DisplayName("getSchemFile_whenBuildExistsAndHasFile_shouldReturnBytes")
     void getSchemFile_whenBuildExistsAndHasFile_shouldReturnBytes() {
         // Arrange
-        when(cache.get(BUILD_CACHE_KEY_ID_1)).thenReturn(Optional.empty());
-        when(buildRepository.findById(TEST_ID_1)).thenReturn(Optional.of(build1));
+        // --- FIX: Use spy for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService); // Spy the service
+        buildService.setSelf(selfSpy); // Inject the spy
+        doReturn(Optional.of(build1)).when(selfSpy).findBuildById(TEST_ID_1); // Stub the internal call
+        // --- End Fix ---
 
         // Act
         Optional<byte[]> schemBytes = buildService.getSchemFile(TEST_ID_1);
 
         // Assert
         assertThat(schemBytes).isPresent().contains(TEST_SCHEM_BYTES);
-        verify(buildRepository).findById(TEST_ID_1);
-        verify(cache).put(BUILD_CACHE_KEY_ID_1, build1);
+        verify(selfSpy).findBuildById(TEST_ID_1); // Verify the internal call on the spy
     }
 
     @Test
@@ -360,16 +368,19 @@ class BuildServiceTest {
         // Arrange
         Build buildWithoutSchem = createTestBuild(TEST_ID_1, BUILD_NAME_1, Set.of(), Set.of(), Set.of());
         buildWithoutSchem.setSchemFile(null);
-        when(cache.get(BUILD_CACHE_KEY_ID_1)).thenReturn(Optional.empty());
-        when(buildRepository.findById(TEST_ID_1)).thenReturn(Optional.of(buildWithoutSchem));
+
+        // --- FIX: Use spy for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        doReturn(Optional.of(buildWithoutSchem)).when(selfSpy).findBuildById(TEST_ID_1);
+        // --- End Fix ---
 
         // Act
         Optional<byte[]> schemBytes = buildService.getSchemFile(TEST_ID_1);
 
         // Assert
         assertThat(schemBytes).isEmpty();
-        verify(buildRepository).findById(TEST_ID_1);
-        verify(cache).put(BUILD_CACHE_KEY_ID_1, buildWithoutSchem);
+        verify(selfSpy).findBuildById(TEST_ID_1);
     }
 
     @Test
@@ -378,32 +389,37 @@ class BuildServiceTest {
         // Arrange
         Build buildWithEmptySchem = createTestBuild(TEST_ID_1, BUILD_NAME_1, Set.of(), Set.of(), Set.of());
         buildWithEmptySchem.setSchemFile(new byte[0]); // Empty byte array
-        when(cache.get(BUILD_CACHE_KEY_ID_1)).thenReturn(Optional.empty());
-        when(buildRepository.findById(TEST_ID_1)).thenReturn(Optional.of(buildWithEmptySchem));
+
+        // --- FIX: Use spy for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        doReturn(Optional.of(buildWithEmptySchem)).when(selfSpy).findBuildById(TEST_ID_1);
+        // --- End Fix ---
 
         // Act
         Optional<byte[]> schemBytes = buildService.getSchemFile(TEST_ID_1);
 
         // Assert
         assertThat(schemBytes).isEmpty(); // Should be empty due to the filter
-        verify(buildRepository).findById(TEST_ID_1);
-        verify(cache).put(BUILD_CACHE_KEY_ID_1, buildWithEmptySchem);
+        verify(selfSpy).findBuildById(TEST_ID_1);
     }
 
     @Test
     @DisplayName("getSchemFile_whenBuildNotFound_shouldReturnEmpty") // New Test
     void getSchemFile_whenBuildNotFound_shouldReturnEmpty() {
         // Arrange
-        when(cache.get(InMemoryCache.generateKey(StringConstants.BUILD, NON_EXISTENT_ID))).thenReturn(Optional.empty());
-        when(buildRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
+        // --- FIX: Use spy for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        doReturn(Optional.empty()).when(selfSpy).findBuildById(NON_EXISTENT_ID);
+        // --- End Fix ---
 
         // Act
         Optional<byte[]> schemBytes = buildService.getSchemFile(NON_EXISTENT_ID);
 
         // Assert
         assertThat(schemBytes).isEmpty();
-        verify(buildRepository).findById(NON_EXISTENT_ID);
-        verify(cache, never()).put(anyString(), any()); // Nothing to cache
+        verify(selfSpy).findBuildById(NON_EXISTENT_ID);
     }
 
 
@@ -425,10 +441,14 @@ class BuildServiceTest {
         savedBuild.setScreenshots(List.of("new.png"));
         savedBuild.setSchemFile("new schem".getBytes());
         String newNameCacheKey = InMemoryCache.generateKey(StringConstants.BUILD, TEST_NAME_NEW);
-        String idCacheKey = BUILD_CACHE_KEY_ID_1;
 
-        when(cache.get(idCacheKey)).thenReturn(Optional.empty());
-        when(buildRepository.findById(TEST_ID_1)).thenReturn(Optional.of(build1));
+        // --- FIX: Mocking for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        // Mock the internal findBuildById call
+        doReturn(Optional.of(build1)).when(selfSpy).findBuildById(TEST_ID_1);
+        // --- End Fix ---
+
         when(buildRepository.findByName(TEST_NAME_NEW)).thenReturn(Optional.empty());
         when(buildRepository.save(any(Build.class))).thenReturn(savedBuild);
 
@@ -441,7 +461,7 @@ class BuildServiceTest {
         assertThat(result.getName()).isEqualTo(TEST_NAME_NEW);
         assertThat(result.getDescription()).isEqualTo("Updated Desc");
 
-        verify(buildRepository).findById(TEST_ID_1);
+        verify(selfSpy).findBuildById(TEST_ID_1); // Verify internal call
         verify(buildRepository).findByName(TEST_NAME_NEW);
         verify(buildRepository).save(buildCaptor.capture());
 
@@ -449,7 +469,7 @@ class BuildServiceTest {
         verify(cache).evict(BUILD_CACHE_KEY_NAME_1);
         verify(cache).put(newNameCacheKey, savedBuild);
         ArgumentCaptor<Build> idPutCaptor = ArgumentCaptor.forClass(Build.class);
-        verify(cache, atLeastOnce()).put(eq(idCacheKey), idPutCaptor.capture());
+        verify(cache, atLeastOnce()).put(eq(BUILD_CACHE_KEY_ID_1), idPutCaptor.capture());
         assertThat(idPutCaptor.getValue().getName()).isEqualTo(TEST_NAME_NEW);
         verify(cache).evictQueryCacheByType(StringConstants.BUILD);
     }
@@ -458,7 +478,6 @@ class BuildServiceTest {
     @DisplayName("updateBuild_whenNameDoesNotChange_shouldUpdateAndManageCache") // New Test
     void updateBuild_whenNameDoesNotChange_shouldUpdateAndManageCache() {
         // Arrange
-        // Update data with the SAME name but different description
         Build updatedBuildData = Build.builder()
                 .name(BUILD_NAME_1) // SAME name
                 .authors(build1.getAuthors())
@@ -468,17 +487,16 @@ class BuildServiceTest {
                 .screenshots(build1.getScreenshots())
                 .schemFile(build1.getSchemFile())
                 .build();
-
-        // Mock the final saved state
         Build savedBuild = createTestBuild(TEST_ID_1, BUILD_NAME_1, build1.getAuthors(), build1.getThemes(), build1.getColors());
         savedBuild.setDescription("New Description Same Name");
-
         String nameCacheKey = BUILD_CACHE_KEY_NAME_1;
-        String idCacheKey = BUILD_CACHE_KEY_ID_1;
 
-        when(cache.get(idCacheKey)).thenReturn(Optional.empty());
-        when(buildRepository.findById(TEST_ID_1)).thenReturn(Optional.of(build1));
-        // findByName should be called, but it will find the *current* build (build1), so the check passes
+        // --- FIX: Mocking for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        doReturn(Optional.of(build1)).when(selfSpy).findBuildById(TEST_ID_1);
+        // --- End Fix ---
+
         when(buildRepository.findByName(BUILD_NAME_1)).thenReturn(Optional.of(build1));
         when(buildRepository.save(any(Build.class))).thenReturn(savedBuild);
 
@@ -491,20 +509,17 @@ class BuildServiceTest {
         assertThat(result.getName()).isEqualTo(BUILD_NAME_1); // Name is unchanged
         assertThat(result.getDescription()).isEqualTo("New Description Same Name"); // Description updated
 
-        verify(buildRepository).findById(TEST_ID_1);
+        verify(selfSpy).findBuildById(TEST_ID_1); // Verify internal call
         verify(buildRepository).findByName(BUILD_NAME_1); // Still checks name uniqueness
         verify(buildRepository).save(buildCaptor.capture());
         assertThat(buildCaptor.getValue().getDescription()).isEqualTo("New Description Same Name");
 
         // Cache Verifications
         verify(cache, never()).evict(nameCacheKey); // Should NOT evict name cache if name didn't change
-        // Should update the name cache with the new data, even if name is the same
         verify(cache).put(nameCacheKey, savedBuild);
-        // Should update the ID cache (at least once)
         ArgumentCaptor<Build> idPutCaptor = ArgumentCaptor.forClass(Build.class);
-        verify(cache, atLeastOnce()).put(eq(idCacheKey), idPutCaptor.capture());
+        verify(cache, atLeastOnce()).put(eq(BUILD_CACHE_KEY_ID_1), idPutCaptor.capture());
         assertThat(idPutCaptor.getValue().getDescription()).isEqualTo("New Description Same Name"); // Check it has updated data
-        // Should evict query cache
         verify(cache).evictQueryCacheByType(StringConstants.BUILD);
     }
 
@@ -514,8 +529,6 @@ class BuildServiceTest {
         // Arrange
         byte[] originalSchemBytes = build1.getSchemFile(); // Store original bytes
         assertThat(originalSchemBytes).isNotNull().isNotEmpty(); // Pre-condition check
-
-        // Update data with NO schem file provided
         Build updatedBuildData = Build.builder()
                 .name(TEST_NAME_NEW)
                 .authors(build1.getAuthors())
@@ -525,26 +538,22 @@ class BuildServiceTest {
                 .screenshots(build1.getScreenshots())
                 .schemFile(null) // Explicitly null schem
                 .build();
-
-        // Mock the final saved state - schem file should be the original one
         Build savedBuild = createTestBuild(TEST_ID_1, TEST_NAME_NEW, build1.getAuthors(), build1.getThemes(), build1.getColors());
         savedBuild.setDescription("Desc No Schem Update");
         savedBuild.setSchemFile(originalSchemBytes); // Should still have the original bytes
 
-        String idCacheKey = BUILD_CACHE_KEY_ID_1;
+        // --- FIX: Mocking for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        doReturn(Optional.of(build1)).when(selfSpy).findBuildById(TEST_ID_1);
+        // --- End Fix ---
 
-        when(cache.get(idCacheKey)).thenReturn(Optional.empty());
-        when(buildRepository.findById(TEST_ID_1)).thenReturn(Optional.of(build1));
         when(buildRepository.findByName(TEST_NAME_NEW)).thenReturn(Optional.empty());
-        // Mock save, importantly ensuring the passed build still has the original schem
         when(buildRepository.save(any(Build.class))).thenAnswer(invocation -> {
             Build buildToSave = invocation.getArgument(0);
-            // Simulate JPA behavior - if field wasn't set in update, it keeps old value
             assertThat(buildToSave.getSchemFile()).isEqualTo(originalSchemBytes);
-            // Return the 'saved' state which should also have the original schem
             return savedBuild;
         });
-
 
         // Act
         Build result = buildService.updateBuild(TEST_ID_1, updatedBuildData);
@@ -553,20 +562,18 @@ class BuildServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getName()).isEqualTo(TEST_NAME_NEW);
         assertThat(result.getDescription()).isEqualTo("Desc No Schem Update");
-        // Assert that the schem file in the result is the original one
         assertThat(result.getSchemFile()).isEqualTo(originalSchemBytes);
 
-        verify(buildRepository).findById(TEST_ID_1);
+        verify(selfSpy).findBuildById(TEST_ID_1); // Verify internal call
         verify(buildRepository).findByName(TEST_NAME_NEW);
         verify(buildRepository).save(buildCaptor.capture());
-        // Assert the build passed to save still had the original schem bytes
         assertThat(buildCaptor.getValue().getSchemFile()).isEqualTo(originalSchemBytes);
 
-        // Cache verification (ensure updated build with original schem is cached)
+        // Cache verification
         verify(cache).evict(BUILD_CACHE_KEY_NAME_1); // Old name evicted
         verify(cache).put(InMemoryCache.generateKey(StringConstants.BUILD, TEST_NAME_NEW), savedBuild); // New name cached
         ArgumentCaptor<Build> idPutCaptor = ArgumentCaptor.forClass(Build.class);
-        verify(cache, atLeastOnce()).put(eq(idCacheKey), idPutCaptor.capture());
+        verify(cache, atLeastOnce()).put(eq(BUILD_CACHE_KEY_ID_1), idPutCaptor.capture());
         assertThat(idPutCaptor.getValue().getSchemFile()).isEqualTo(originalSchemBytes); // Check schem in cached object
         verify(cache).evictQueryCacheByType(StringConstants.BUILD);
     }
@@ -577,8 +584,13 @@ class BuildServiceTest {
     void updateBuild_whenNameExistsForDifferentBuild_shouldThrowIllegalArgumentException() {
         // Arrange
         Build updatedBuildData = Build.builder().name(BUILD_NAME_2).build();
-        when(cache.get(BUILD_CACHE_KEY_ID_1)).thenReturn(Optional.empty());
-        when(buildRepository.findById(TEST_ID_1)).thenReturn(Optional.of(build1));
+
+        // --- FIX: Mocking for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        doReturn(Optional.of(build1)).when(selfSpy).findBuildById(TEST_ID_1);
+        // --- End Fix ---
+
         when(buildRepository.findByName(BUILD_NAME_2)).thenReturn(Optional.of(build2));
 
         // Act & Assert
@@ -586,11 +598,10 @@ class BuildServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(BUILD_NAME_2 + "' " + StringConstants.ALREADY_EXISTS_MESSAGE);
 
-        verify(buildRepository).findById(TEST_ID_1);
-        verify(cache).put(BUILD_CACHE_KEY_ID_1, build1);
+        verify(selfSpy).findBuildById(TEST_ID_1); // Verify internal call
         verify(buildRepository).findByName(BUILD_NAME_2);
         verify(buildRepository, never()).save(any());
-        verify(cache, never()).evict(anyString());
+        verify(cache, never()).evict(anyString()); // Evict for old name shouldn't happen on failure
         verify(cache, never()).evictQueryCacheByType(anyString());
     }
 
@@ -599,15 +610,19 @@ class BuildServiceTest {
     void updateBuild_whenBuildNotFound_shouldThrowNoSuchElementException() {
         // Arrange
         Build updatedBuildData = Build.builder().name(TEST_NAME_NEW).build();
-        when(cache.get(InMemoryCache.generateKey(StringConstants.BUILD, NON_EXISTENT_ID))).thenReturn(Optional.empty());
-        when(buildRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
+
+        // --- FIX: Mocking for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        doReturn(Optional.empty()).when(selfSpy).findBuildById(NON_EXISTENT_ID);
+        // --- End Fix ---
 
         // Act & Assert
         assertThatThrownBy(() -> buildService.updateBuild(NON_EXISTENT_ID, updatedBuildData))
                 .isInstanceOf(NoSuchElementException.class)
                 .hasMessageContaining(StringConstants.BUILD + " " + StringConstants.WITH_ID + " '" + NON_EXISTENT_ID + "' " + StringConstants.NOT_FOUND_MESSAGE);
 
-        verify(buildRepository).findById(NON_EXISTENT_ID);
+        verify(selfSpy).findBuildById(NON_EXISTENT_ID); // Verify internal call
         verify(buildRepository, never()).findByName(anyString());
         verify(buildRepository, never()).save(any());
     }
@@ -617,13 +632,17 @@ class BuildServiceTest {
     @DisplayName("deleteBuild_whenExists_shouldDeleteFromRepoAndEvictCaches")
     void deleteBuild_whenExists_shouldDeleteFromRepoAndEvictCaches() {
         // Arrange
-        when(buildRepository.findById(TEST_ID_1)).thenReturn(Optional.of(build1));
+        // --- FIX: Mocking for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        doReturn(Optional.of(build1)).when(selfSpy).findBuildById(TEST_ID_1);
+        // --- End Fix ---
 
         // Act
         buildService.deleteBuild(TEST_ID_1);
 
         // Assert
-        verify(buildRepository).findById(TEST_ID_1);
+        verify(selfSpy).findBuildById(TEST_ID_1); // Verify internal call
         verify(buildRepository).deleteById(TEST_ID_1);
         verify(cache).evict(BUILD_CACHE_KEY_ID_1);
         verify(cache).evict(BUILD_CACHE_KEY_NAME_1);
@@ -634,14 +653,18 @@ class BuildServiceTest {
     @DisplayName("deleteBuild_whenNotFound_shouldThrowNoSuchElementException")
     void deleteBuild_whenNotFound_shouldThrowNoSuchElementException() {
         // Arrange
-        when(buildRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
+        // --- FIX: Mocking for self-invocation ---
+        BuildService selfSpy = Mockito.spy(buildService);
+        buildService.setSelf(selfSpy);
+        doReturn(Optional.empty()).when(selfSpy).findBuildById(NON_EXISTENT_ID);
+        // --- End Fix ---
 
         // Act & Assert
         assertThatThrownBy(() -> buildService.deleteBuild(NON_EXISTENT_ID))
                 .isInstanceOf(NoSuchElementException.class)
                 .hasMessageContaining(StringConstants.BUILD + " " + StringConstants.WITH_ID + " '" + NON_EXISTENT_ID + "' " + StringConstants.NOT_FOUND_MESSAGE);
 
-        verify(buildRepository).findById(NON_EXISTENT_ID);
+        verify(selfSpy).findBuildById(NON_EXISTENT_ID); // Verify internal call
         verify(buildRepository, never()).deleteById(anyLong());
         verify(cache, never()).evict(anyString());
         verify(cache, never()).evictQueryCacheByType(anyString());

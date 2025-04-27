@@ -12,15 +12,7 @@ import lombok.experimental.SuperBuilder;
 @ToString(callSuper = true)
 @SuperBuilder
 public class Theme extends BaseNamedEntity {
-    // Fields id and name inherited
-
-    /**
-     * Default protected constructor required by JPA.
-     * Explicitly added to work alongside @SuperBuilder.
-     */
-    protected Theme() { // *** FIX: Explicit protected no-arg constructor ***
+    protected Theme() {
         super();
     }
-
-    // SuperBuilder generates the builder and necessary constructor(s) for it.
 }

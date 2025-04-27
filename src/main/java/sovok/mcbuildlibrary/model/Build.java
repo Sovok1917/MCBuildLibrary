@@ -24,7 +24,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.Cascade; // Keep specific Cascade if needed
+import org.hibernate.annotations.Cascade;
 import org.hibernate.annotations.CascadeType;
 import sovok.mcbuildlibrary.exception.StringConstants;
 import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
@@ -33,7 +33,7 @@ import sovok.mcbuildlibrary.validation.NotPurelyNumeric;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder // Build uses regular @Builder, not @SuperBuilder as it doesn't inherit
+@Builder
 public class Build {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,8 +52,8 @@ public class Build {
             joinColumns = @JoinColumn(name = "build_id"),
             inverseJoinColumns = @JoinColumn(name = "author_id")
     )
-    @Cascade(CascadeType.PERSIST) // Use org.hibernate.annotations.Cascade
-    @Builder.Default // *** FIX: Add Builder.Default ***
+    @Cascade(CascadeType.PERSIST)
+    @Builder.Default
     private Set<Author> authors = new HashSet<>();
 
     @NotEmpty(message = "At least one theme is required")
@@ -64,7 +64,7 @@ public class Build {
             inverseJoinColumns = @JoinColumn(name = "theme_id")
     )
     @Cascade(CascadeType.PERSIST)
-    @Builder.Default // *** FIX: Add Builder.Default ***
+    @Builder.Default
     private Set<Theme> themes = new HashSet<>();
 
     @Size(message = "Description cannot exceed {max} characters")
@@ -78,17 +78,17 @@ public class Build {
             inverseJoinColumns = @JoinColumn(name = "color_id")
     )
     @Cascade(CascadeType.PERSIST)
-    @Builder.Default // *** FIX: Add Builder.Default ***
+    @Builder.Default
     private Set<Color> colors = new HashSet<>();
 
     @ElementCollection
     @CollectionTable(name = "screenshots", joinColumns = @JoinColumn(name = "build_id"))
     @Column(name = "screenshot")
-    @Cascade(CascadeType.ALL) // CascadeType.ALL includes PERSIST, MERGE, REMOVE, REFRESH, DETACH
+    @Cascade(CascadeType.ALL)
     @Size(max = 10, message = "Maximum of 10 screenshots allowed")
-    // @Builder.Default // No need for default on List if null/empty list is acceptable
-    // default from builder
-    private List<String> screenshots; // Initialized to null by default
+
+
+    private List<String> screenshots;
 
     @Lob
     @Basic(fetch = FetchType.LAZY)

@@ -8,10 +8,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/**
- * Validation annotation to ensure a String field does not consist purely of numeric digits.
- * Null or empty values are considered valid by this constraint; combine with @NotBlank if needed.
- */
 @Documented
 @Constraint(validatedBy = NotPurelyNumericValidator.class)
 @Target({ ElementType.METHOD, ElementType.FIELD, ElementType.ANNOTATION_TYPE, ElementType

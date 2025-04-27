@@ -12,15 +12,11 @@ import lombok.experimental.SuperBuilder;
 @ToString(callSuper = true)
 @SuperBuilder
 public class Author extends BaseNamedEntity {
-    // Fields id and name inherited
 
-    /**
-     * Default protected constructor required by JPA.
-     * Explicitly added to work alongside @SuperBuilder.
-     */
-    protected Author() { // *** FIX: Explicit protected no-arg constructor ***
-        super(); // Call super constructor if needed (often implicit)
+
+    protected Author() {
+        super();
     }
 
-    // SuperBuilder generates the builder and necessary constructor(s) for it.
+
 }

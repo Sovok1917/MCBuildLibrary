@@ -38,9 +38,6 @@ public class LogController {
 
     private static final Logger log = LoggerFactory.getLogger(LogController.class);
 
-    // --- getAvailableLogDates, processLogFileEntry, getLogFileByDate,
-    // getTodaysLogFile, parseAndValidateDate ---
-    // --- remain unchanged from the previous correct version ---
 
     @Operation(summary = StringConstants.LIST_DATES_SUMMARY, description
             = StringConstants.LIST_DATES_DESCRIPTION)
@@ -148,12 +145,9 @@ public class LogController {
         }
     }
 
-    // *** MODIFIED METHOD ***
     private ResponseEntity<Object> serveLogFile(Path logFilePath, String downloadFilename) {
         InputStream inputStream; // Declare outside try
         try {
-            // *** REMOVED try-with-resources ***
-            // Create the input stream - MUST NOT be closed here
             inputStream = Files.newInputStream(logFilePath);
 
             HttpHeaders headers = new HttpHeaders();
@@ -163,15 +157,12 @@ public class LogController {
             headers.add(HttpHeaders.PRAGMA, StringConstants.HEADER_PRAGMA_NO_CACHE);
             headers.add(HttpHeaders.EXPIRES, StringConstants.HEADER_EXPIRES_ZERO);
 
-            // Get size *before* creating resource, can throw IOException
             long fileSize = Files.size(logFilePath);
 
-            // Pass the OPEN stream to the resource
             InputStreamResource resource = new InputStreamResource(inputStream);
 
             log.info("Successfully prepared log file for download: {}", downloadFilename);
 
-            // Return the response entity; Spring will handle reading the stream
             return ResponseEntity.ok()
                     .headers(headers)
                     .contentLength(fileSize)
@@ -179,14 +170,7 @@ public class LogController {
                     .body(resource);
 
         } catch (IOException | SecurityException e) {
-            // If creating stream or getting size fails, we might need to close the stream
-            // IF it was successfully opened before the error occurred.
-            // However, Files.newInputStream throws before assignment on error,
-            // and Files.size also throws before resource creation.
-            // The stream passed to InputStreamResource will be managed by Spring.
-            // So, no explicit close needed here in the catch block.
 
-            // Rethrow for GlobalExceptionHandler (without local logging)
             String contextualMessage = String.format(
                     "%s Accessing file: %s. Cause: %s - %s",
                     StringConstants.LOG_FILE_ACCESS_ERROR_DETAIL,
@@ -196,7 +180,5 @@ public class LogController {
             );
             throw new LogAccessException(contextualMessage, e);
         }
-        // Note: No finally block needed to close 'inputStream' as Spring will manage the
-        // stream wrapped in InputStreamResource when processing the response body.
     }
 }

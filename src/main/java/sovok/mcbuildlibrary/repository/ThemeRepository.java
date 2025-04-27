@@ -8,11 +8,6 @@ import sovok.mcbuildlibrary.model.Theme;
 
 @Repository
 public interface ThemeRepository extends BaseNamedEntityRepository<Theme> {
-    // ExtenAds BaseNamedEntityRepository
-
-    // findByName and findByNamesIgnoreCase are inherited
-
-    // Native query for fuzzy search remains here due to table name 'theme'
     @Query(value = "SELECT * FROM theme t WHERE :name IS NULL OR SIMILARITY(t.name, :name) > 0.3",
             nativeQuery = true)
     List<Theme> fuzzyFindByName(@Param("name") String name);

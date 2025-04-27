@@ -21,30 +21,7 @@ import sovok.mcbuildlibrary.repository.BuildRepository;
 import sovok.mcbuildlibrary.util.BulkCreationResult;
 
 
-/**
- * Abstract base service for entities extending BaseNamedEntity.
- * Provides common CRUD operations, caching, and bulk creation logic.
- *
- * <p><b>Warning Suppression:</b></p>
- *
- * <p>This class suppresses SonarQube rule java:S6809 ("Methods with Spring proxy behavior
- * should not be called via 'this'"). The standard fix (self-injection via @Autowired/@Resource)
- * is not feasible in this generic abstract base class, as Spring cannot determine the concrete
- * type 'S' to inject. The internal methods called via 'this' (like create, deleteInternal) use
- * the default REQUIRED transaction propagation. When invoked by the public @Transactional methods
- * (deleteById, deleteByName, findOrCreate), they correctly join the existing transaction managed
- * by the proxy of the public method. Therefore, the desired transactional semantics are maintained
- * in this specific pattern, and suppression is preferred over significantly refactoring the base
- * class logic or requiring complex overrides in subclasses.</p>
- *
- * <p>It also suppresses the "unused" warning for {@code findByFuzzyName} as it is used
- * via method reference in {@code findDtosByNameQuery}.</p>
- *
- * @param <T>   The specific entity type (e.g., Author, Theme, Color).
- * @param <D>   The DTO type for this entity (e.g., AuthorDto).
- * @param <R>   The specific repository type (e.g., AuthorRepository).
- */
-@SuppressWarnings({"java:S6809", "unused"}) // Suppress S6809 and the 'unused' findByFuzzyName
+@SuppressWarnings({"java:S6809", "unused"})
 public abstract class BaseNamedEntityService<
         T extends BaseNamedEntity,
         D,
@@ -65,7 +42,7 @@ public abstract class BaseNamedEntityService<
         this.cache = cache;
     }
 
-    // --- Abstract Methods ---
+
 
     public abstract D convertToDto(T entity);
 
@@ -75,18 +52,11 @@ public abstract class BaseNamedEntityService<
 
     protected abstract List<T> fuzzyFindEntitiesByName(String name);
 
-    /**
-     * Checks if the entity can be deleted (e.g., checks for associations with Builds).
-     * Throws an exception (e.g., IllegalStateException) if deletion is not allowed.
-     * Called *before* the entity is actually deleted from the repository.
-     *
-     * @param entity The entity to check. // <<< FIX: Added blank line before @param
-     */
     protected abstract void checkDeletionConstraints(T entity);
 
     protected abstract T instantiateEntity(String name);
 
-    // --- Concrete Methods ---
+
 
     protected Supplier<NoSuchElementException> notFoundByIdException(Long id) {
         return () -> new NoSuchElementException(
@@ -115,11 +85,11 @@ public abstract class BaseNamedEntityService<
         repository.findByName(name).ifPresent(existing -> {
             throw alreadyExistsException(name);
         });
-        T entity = this.instantiateEntity(name); // Using 'this' is fine for abstract/protected call
+        T entity = this.instantiateEntity(name);
         T savedEntity = repository.save(entity);
         logger.info("Created {}: {}", getEntityTypeString(), savedEntity);
-        this.cacheEntity(savedEntity); // Using 'this' is fine for helper method
-        this.evictQueryCaches(); // Using 'this' is fine for helper method
+        this.cacheEntity(savedEntity);
+        this.evictQueryCaches();
         return savedEntity;
     }
 
@@ -153,7 +123,7 @@ public abstract class BaseNamedEntityService<
 
     @Transactional(readOnly = true)
     public Optional<D> findDtoById(Long id) {
-        return this.findById(id).map(this::convertToDto); // 'this' calls are ok here
+        return this.findById(id).map(this::convertToDto);
     }
 
     @Transactional(readOnly = true)
@@ -161,7 +131,7 @@ public abstract class BaseNamedEntityService<
         logger.debug("Fetching all {} from repository (getAll cache disabled).",
                 getEntityTypePluralString());
         List<T> entities = repository.findAll();
-        return entities.stream().map(this::convertToDto).toList(); // 'this' call is ok
+        return entities.stream().map(this::convertToDto).toList();
     }
 
     @Transactional(readOnly = true)
@@ -177,21 +147,21 @@ public abstract class BaseNamedEntityService<
         } else {
             logger.debug("Cache miss for {} query: {}. Fetching from repository.",
                     getEntityTypeString(), queryKey);
-            entities = this.findByFuzzyName(name); // 'this' call ok
+            entities = this.findByFuzzyName(name);
             cache.put(queryKey, entities);
         }
-        return entities.stream().map(this::convertToDto).toList(); // 'this' call ok
+        return entities.stream().map(this::convertToDto).toList();
     }
 
     @Transactional(readOnly = true)
-    @SuppressWarnings("unused") // <<< FIX: Suppress unused warning
+    @SuppressWarnings("unused")
     public List<T> findByFuzzyName(String name) {
-        return fuzzyFindEntitiesByName(name); // Calls abstract method
+        return fuzzyFindEntitiesByName(name);
     }
 
     @Transactional
     public T update(Long id, String newName) {
-        T entity = this.findById(id).orElseThrow(notFoundByIdException(id)); // 'this' call ok
+        T entity = this.findById(id).orElseThrow(notFoundByIdException(id));
         repository.findByName(newName).ifPresent(existing -> {
             if (!existing.getId().equals(id)) {
                 throw alreadyExistsException(newName);
@@ -203,39 +173,39 @@ public abstract class BaseNamedEntityService<
         T updatedEntity = repository.save(entity);
         logger.info("Updated {}: {}", getEntityTypeString(), updatedEntity);
         if (nameChanged) {
-            this.evictEntityByName(oldName); // 'this' call ok
+            this.evictEntityByName(oldName);
         }
-        this.cacheEntity(updatedEntity); // 'this' call ok
-        this.evictQueryCaches(); // 'this' call ok
+        this.cacheEntity(updatedEntity);
+        this.evictQueryCaches();
         return updatedEntity;
     }
 
     @Transactional
     public void deleteById(Long id) {
-        T entity = this.findById(id).orElseThrow(notFoundByIdException(id)); // 'this' call ok
-        // <<< FIX: Reverted to 'this' call >>> Checkstyle warning might appear here
+        T entity = this.findById(id).orElseThrow(notFoundByIdException(id));
+
         this.deleteInternal(entity);
     }
 
     @Transactional
     public void deleteByName(String name) {
         T entity = this.findByName(name).orElseThrow(notFoundByNameException(name));
-        // 'this' call ok
-        // <<< FIX: Reverted to 'this' call >>> Checkstyle warning might appear here
+
+
         this.deleteInternal(entity);
     }
 
     @Transactional
     public void deleteInternal(T entity) {
-        this.checkDeletionConstraints(entity); // 'this' call ok
+        this.checkDeletionConstraints(entity);
         Long entityId = entity.getId();
         String entityName = entity.getName();
         repository.delete(entity);
         logger.info("Deleted {} with ID: {}, Name: {}", getEntityTypeString(), entityId,
                 entityName);
-        this.evictEntityById(entityId); // 'this' call ok
-        this.evictEntityByName(entityName); // 'this' call ok
-        this.evictQueryCaches(); // 'this' call ok
+        this.evictEntityById(entityId);
+        this.evictEntityByName(entityName);
+        this.evictQueryCaches();
     }
 
     @Transactional
@@ -294,21 +264,21 @@ public abstract class BaseNamedEntityService<
         }
 
         List<T> newEntities = namesToActuallyCreate.stream()
-                .map(this::instantiateEntity) // 'this' call ok
+                .map(this::instantiateEntity)
                 .toList();
         List<T> savedEntities = repository.saveAll(newEntities);
 
         logger.info("Bulk {} Creation: Created {} entities. Skipped {} entities.",
                 getEntityTypePluralString(), savedEntities.size(), allSkippedNames.size());
 
-        savedEntities.forEach(this::cacheEntity); // 'this' call ok
-        this.evictQueryCaches(); // 'this' call ok
+        savedEntities.forEach(this::cacheEntity);
+        this.evictQueryCaches();
 
         List<String> createdNames = savedEntities.stream().map(BaseNamedEntity::getName).toList();
         return new BulkCreationResult<>(createdNames, allSkippedNames);
     }
 
-    // --- Helper Methods ---
+
 
     protected void cacheEntity(T entity) {
         if (entity == null || entity.getId() == null || entity.getName() == null) {

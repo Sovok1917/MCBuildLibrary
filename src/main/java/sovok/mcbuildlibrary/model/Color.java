@@ -12,15 +12,9 @@ import lombok.experimental.SuperBuilder;
 @ToString(callSuper = true)
 @SuperBuilder
 public class Color extends BaseNamedEntity {
-    // Fields id and name inherited
-
-    /**
-     * Default protected constructor required by JPA.
-     * Explicitly added to work alongside @SuperBuilder.
-     */
-    protected Color() { // *** FIX: Explicit protected no-arg constructor ***
+    protected Color() {
         super();
     }
 
-    // SuperBuilder generates the builder and necessary constructor(s) for it.
+
 }

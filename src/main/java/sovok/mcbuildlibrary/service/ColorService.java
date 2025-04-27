@@ -72,7 +72,7 @@ public class ColorService extends BaseNamedEntityService<Color, ColorDto, ColorR
 
     @Override
     protected Color instantiateEntity(String name) {
-        // This call now works correctly because Color has @SuperBuilder
+
         return Color.builder().name(name).build();
     }
 }

@@ -5,7 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // Added
+import org.springframework.transaction.annotation.Transactional;
 import sovok.mcbuildlibrary.cache.InMemoryCache;
 import sovok.mcbuildlibrary.dto.AuthorDto;
 import sovok.mcbuildlibrary.dto.RelatedBuildDto;
@@ -56,9 +56,6 @@ public class AuthorService extends BaseNamedEntityService<Author, AuthorDto, Aut
 
     @Override
     protected void checkDeletionConstraints(Author author) {
-        // Author deletion *is* allowed, but triggers build handling logic.
-        // So, no exception needs to be thrown here. The actual handling
-        // is done in the overridden deleteInternal method.
         logger.debug("Pre-deletion check for Author '{}' (ID: {}): No constraints"
                         + " preventing deletion itself.",
                 author.getName(), author.getId());
@@ -66,13 +63,13 @@ public class AuthorService extends BaseNamedEntityService<Author, AuthorDto, Aut
 
     @Override
     protected Author instantiateEntity(String name) {
-        // Correctly uses the Lombok builder for the Author class
-        return Author.builder().name(name).build(); // *** FIX: Verified this is correct ***
+
+        return Author.builder().name(name).build();
     }
 
-    // Override deleteInternal to handle build associations BEFORE deleting the author
-    @Override // *** FIX: This override is now valid because base method is protected ***
-    @Transactional // Ensure build modifications/deletions are in the same transaction
+
+    @Override
+    @Transactional
     public void deleteInternal(Author author) {
         logger.debug("Performing Author-specific pre-deletion steps for author ID: {}",
                 author.getId());
@@ -80,25 +77,25 @@ public class AuthorService extends BaseNamedEntityService<Author, AuthorDto, Aut
         boolean buildCacheInvalidated = false;
 
         for (Build build : builds) {
-            buildCacheInvalidated = true; // Mark that build cache needs invalidation
+            buildCacheInvalidated = true;
             String buildIdCacheKey = InMemoryCache.generateKey(StringConstants.BUILD,
                     build.getId());
             String buildNameCacheKey = InMemoryCache.generateKey(StringConstants.BUILD,
                     build.getName());
 
             if (build.getAuthors().size() == 1 && build.getAuthors().contains(author)) {
-                // This is the last author, delete the build
+
                 logger.warn("Deleting Build ID {} ('{}') as its last author {} (ID {}) is being "
                                 + "deleted.",
                         build.getId(), build.getName(), author.getName(), author.getId());
                 cache.evict(buildIdCacheKey);
                 cache.evict(buildNameCacheKey);
-                buildRepository.delete(build); // Delete the build
+                buildRepository.delete(build);
             } else {
-                // Remove the author from the build's author list and save
+
                 build.getAuthors().remove(author);
                 Build updatedBuild = buildRepository.save(build);
-                // Update build cache
+
                 cache.put(buildIdCacheKey, updatedBuild);
                 cache.put(buildNameCacheKey, updatedBuild);
                 logger.info("Removed author {} (ID {}) from build {} ('{}')",
@@ -106,11 +103,10 @@ public class AuthorService extends BaseNamedEntityService<Author, AuthorDto, Aut
             }
         }
 
-        // Now call the base class deleteInternal to delete the author entity and handle author
-        // cache eviction
-        super.deleteInternal(author); // *** FIX: This call is now valid ***
 
-        // Evict build query caches if any builds were affected
+
+        super.deleteInternal(author);
+
         if (buildCacheInvalidated) {
             cache.evictQueryCacheByType(StringConstants.BUILD);
             logger.debug("Evicted build query cache due to author deletion.");

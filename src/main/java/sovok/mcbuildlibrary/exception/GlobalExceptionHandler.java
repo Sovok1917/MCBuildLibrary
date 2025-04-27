@@ -33,7 +33,7 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
             String path = violation.getPropertyPath().toString();
-            // Attempt to get the actual parameter name more reliably
+
             String parameterName = path;
             int lastDot = path.lastIndexOf('.');
             if (lastDot != -1 && lastDot < path.length() - 1) {
@@ -86,7 +86,7 @@ public class GlobalExceptionHandler {
                         ex.getParameterType()));
         pd.setTitle(StringConstants.INPUT_ERROR_MESSAGE);
         log.warn("{}: Parameter '{}' is missing", StringConstants.INPUT_ERROR_MESSAGE,
-                ex.getParameterName()); // No trace needed
+                ex.getParameterName());
         return pd;
     }
 
@@ -98,7 +98,7 @@ public class GlobalExceptionHandler {
                 String.format(StringConstants.MISSING_FILE_PART_MESSAGE, ex.getRequestPartName()));
         pd.setTitle(StringConstants.INPUT_ERROR_MESSAGE);
         log.warn("{}: Required part '{}' is missing", StringConstants.INPUT_ERROR_MESSAGE,
-                ex.getRequestPartName()); // No trace needed
+                ex.getRequestPartName());
         return pd;
     }
 
@@ -109,14 +109,14 @@ public class GlobalExceptionHandler {
         String paramName = ex.getName();
         Object invalidValue = ex.getValue();
 
-        // Store the result of getRequiredType() to avoid calling it twice
+
         Class<?> requiredType = ex.getRequiredType();
         String expectedType;
         if (requiredType != null) {
             expectedType = requiredType.getSimpleName();
         } else {
             expectedType = "unknown";
-            // Log a warning to help debug this edge case
+
             log.warn("Could not determine required type for parameter '{}'. Value provided: '{}'",
                     paramName, invalidValue);
         }
@@ -140,7 +140,7 @@ public class GlobalExceptionHandler {
         return pd;
     }
 
-    // --- 404 Not Found Handler ---
+
     @ExceptionHandler(NoSuchElementException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ProblemDetail handleNoSuchElementException(NoSuchElementException ex) {
@@ -157,27 +157,27 @@ public class GlobalExceptionHandler {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
         pd.setTitle(StringConstants.NOT_FOUND_MESSAGE);
         log.warn(StringConstants.LOG_MESSAGE_FORMAT, StringConstants.NOT_FOUND_MESSAGE,
-                ex.getMessage()); // Log message only
+                ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
     }
 
-    // --- 409 Conflict Handler ---
+
     @ExceptionHandler(IllegalStateException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ProblemDetail handleIllegalStateException(IllegalStateException ex) {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
         pd.setTitle("Conflict");
-        log.warn("Conflict: {}", ex.getMessage()); // Log message only for conflict
+        log.warn("Conflict: {}", ex.getMessage());
         return pd;
     }
 
-    // --- 500 Internal Server Error Handlers ---
 
-    // Handler for specific log file/directory access issues
+
+
     @ExceptionHandler(LogAccessException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ProblemDetail handleLogAccessException(LogAccessException ex) {
-        // Log the detailed error message and the original cause from the custom exception
+
         log.error("Log access error: {} - Cause: {}", ex.getMessage(), ex.getCause()
                 != null ? ex.getCause().getClass().getSimpleName() : "N/A", ex);
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
@@ -186,12 +186,12 @@ public class GlobalExceptionHandler {
         return pd;
     }
 
-    // Generic Fallback Handler (500)
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ProblemDetail handleGenericException(Exception ex) {
-        // Check if it's one of the exceptions expected to be handled more specifically
-        // (client errors, known server state errors, handled log access errors)
+
+
         if (ex instanceof MissingServletRequestPartException
                 || ex instanceof MissingServletRequestParameterException
                 || ex instanceof IllegalArgumentException
@@ -201,14 +201,14 @@ public class GlobalExceptionHandler {
                 || ex instanceof NoSuchElementException
                 || ex instanceof IllegalStateException
                 || ex instanceof LogAccessException) {
-            // Log as WARN because it should ideally have been caught by a specific handler
+
             log.warn("Exception handled by generic handler but should have been caught "
                     + "earlier: {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
         } else {
-            // Log genuinely unexpected exceptions as ERROR with full stack trace
+
             log.error("Unhandled exception occurred: {}", ex.getMessage(), ex);
         }
-        // Return a generic error message to the client
+
         String message = "An unexpected internal error occurred. Please contact support.";
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
                 message);

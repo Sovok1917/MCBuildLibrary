@@ -71,7 +71,6 @@ public class ThemeService extends BaseNamedEntityService<Theme, ThemeDto, ThemeR
 
     @Override
     protected Theme instantiateEntity(String name) {
-        // This call now works correctly because Theme has @SuperBuilder
         return Theme.builder().name(name).build();
     }
 }
