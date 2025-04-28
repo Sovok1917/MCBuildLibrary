@@ -31,9 +31,13 @@ public final class TestConstants {
 
     // --- Theme Specific ---
     public static final String THEME_NAME_1 = "ThemeOne";
+    public static final String THEME_NAME_2 = "ThemeTwo";
+    public static final String THEME_NAME_3 = "ThemeThree";
 
     // --- Color Specific ---
     public static final String COLOR_NAME_1 = "ColorOne";
+    public static final String COLOR_NAME_2 = "ColorTwo";
+    public static final String COLOR_NAME_3 = "ColorThree";
 
     // --- Build Specific ---
     public static final String BUILD_NAME_1 = "BuildOne";
