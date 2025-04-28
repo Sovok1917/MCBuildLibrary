@@ -788,4 +788,35 @@ class ColorServiceTest {
         assertThat(newColor.getId()).isNull();
         assertThat(newColor.getName()).isEqualTo(name);
     }
+
+    @Test
+    @DisplayName("fuzzyFindEntitiesByName_shouldCallRepositoryMethod")
+    void fuzzyFindEntitiesByName_shouldCallRepositoryMethod() {
+
+        String query = "Blu";
+        List<Color> expectedColors = List.of(
+                createTestColor(TEST_ID_1, "Blue"),
+                createTestColor(TEST_ID_2, "LightBlue")
+        );
+        when(colorRepository.fuzzyFindByName(query)).thenReturn(expectedColors);
+
+        List<Color> actualColors = colorService.fuzzyFindEntitiesByName(query);
+
+        assertThat(actualColors).isEqualTo(expectedColors);
+        verify(colorRepository).fuzzyFindByName(query);
+    }
+
+    @Test
+    @DisplayName("fuzzyFindEntitiesByName_withNullQuery_shouldCallRepositoryMethodWithNull")
+    void fuzzyFindEntitiesByName_withNullQuery_shouldCallRepositoryMethodWithNull() {
+
+        List<Color> allColors = List.of(color1, color2);
+        when(colorRepository.fuzzyFindByName(null)).thenReturn(allColors);
+
+        List<Color> actualColors = colorService.fuzzyFindEntitiesByName(null);
+
+        assertThat(actualColors).isEqualTo(allColors);
+        verify(colorRepository).fuzzyFindByName(null);
+    }
+
 }

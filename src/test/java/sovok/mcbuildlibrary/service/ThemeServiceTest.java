@@ -155,6 +155,40 @@ class ThemeServiceTest {
         verify(themeRepository).findById(NON_EXISTENT_ID);
         verify(cache, never()).put(anyString(), any());
     }
+    @Test
+    @DisplayName("fuzzyFindEntitiesByName_shouldCallRepositoryMethod")
+    void fuzzyFindEntitiesByName_shouldCallRepositoryMethod() {
+
+        String query = "Med";
+        List<Theme> expectedThemes = List.of(
+                createTestTheme(TEST_ID_1, "Medieval"),
+                createTestTheme(TEST_ID_2, "Mediterranean")
+        );
+        when(themeRepository.fuzzyFindByName(query)).thenReturn(expectedThemes);
+
+
+
+        List<Theme> actualThemes = themeService.fuzzyFindEntitiesByName(query);
+
+
+        assertThat(actualThemes).isEqualTo(expectedThemes);
+        verify(themeRepository).fuzzyFindByName(query);
+    }
+
+    @Test
+    @DisplayName("fuzzyFindEntitiesByName_withNullQuery_shouldCallRepositoryMethodWithNull")
+    void fuzzyFindEntitiesByName_withNullQuery_shouldCallRepositoryMethodWithNull() {
+
+        List<Theme> allThemes = List.of(theme1, theme2);
+        when(themeRepository.fuzzyFindByName(null)).thenReturn(allThemes);
+
+
+        List<Theme> actualThemes = themeService.fuzzyFindEntitiesByName(null);
+
+
+        assertThat(actualThemes).isEqualTo(allThemes);
+        verify(themeRepository).fuzzyFindByName(null);
+    }
 
     @Test
     @DisplayName("findByName_whenCachedAndMatches_shouldReturnCached")
