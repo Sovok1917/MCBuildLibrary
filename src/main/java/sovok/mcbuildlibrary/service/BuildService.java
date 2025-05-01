@@ -195,4 +195,33 @@ public class BuildService {
         cache.evict(InMemoryCache.generateKey(CACHE_ENTITY_TYPE, name));
         cache.evictQueryCacheByType(CACHE_ENTITY_TYPE);
     }
+
+    @Transactional(readOnly = true)
+    public Build findBuildByIdentifier(String identifier) {
+        try {
+            Long buildId = Long.valueOf(identifier);
+            // Use self-invocation to ensure cache/transactional behavior is applied
+            return self.findBuildById(buildId)
+                    .orElseThrow(() -> new NoSuchElementException(
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    CACHE_ENTITY_TYPE, StringConstants.WITH_ID, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
+        } catch (NumberFormatException e) {
+            // Identifier is not a number, assume it's a name
+            // Use self-invocation to ensure cache/transactional behavior is applied
+            return self.findByName(identifier)
+                    .orElseThrow(() -> new NoSuchElementException(
+                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
+                                    CACHE_ENTITY_TYPE, StringConstants.WITH_NAME, identifier,
+                                    StringConstants.NOT_FOUND_MESSAGE)));
+        }
+    }
+
+    @Transactional(readOnly = true) // Ensure transaction for the fetch operation
+    public Optional<Build> findBuildFullyLoadedForLog(Long id) {
+        logger.debug("Fetching Build with ID {} and eagerly loading associations for logging.", id);
+        // Note: We might bypass the regular cache here as we need a specific fetch strategy.
+        // Alternatively, cache the fully loaded object under a different key if needed often.
+        return buildRepository.findByIdWithAssociationsForLog(id);
+    }
 }

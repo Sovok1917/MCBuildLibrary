@@ -15,6 +15,13 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
         String getName();
     }
 
+    @Query("SELECT DISTINCT b FROM Build b "
+            + "LEFT JOIN FETCH b.authors "
+            + "LEFT JOIN FETCH b.themes "
+            + "LEFT JOIN FETCH b.colors "
+            + "LEFT JOIN FETCH b.screenshots "
+            + "WHERE b.id = :id")
+    Optional<Build> findByIdWithAssociationsForLog(@Param("id") Long id);
 
     @Query(value = "SELECT DISTINCT b.* FROM build b "
             + "LEFT JOIN build_authors ba ON b.id = ba.build_id "

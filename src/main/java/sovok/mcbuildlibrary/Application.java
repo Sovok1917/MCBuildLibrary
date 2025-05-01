@@ -5,8 +5,10 @@ import io.swagger.v3.oas.annotations.info.Info;         // Import
 import io.swagger.v3.oas.annotations.info.License;     // Import
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
+@EnableAsync
 @OpenAPIDefinition(// Add OpenAPI Definition
         info = @Info(
                 title = "Minecraft Build Library API",

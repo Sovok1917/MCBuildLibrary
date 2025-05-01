@@ -160,4 +160,33 @@ public final class StringConstants {
             + "t-revalidate";
     public static final String HEADER_PRAGMA_NO_CACHE = "no-cache";
     public static final String HEADER_EXPIRES_ZERO = "0";
+
+    public static final String BUILD_LOGS_SUBDIRECTORY = "build_logs";
+    public static final String BUILD_LOGS_DIRECTORY = LOGS_BASE_DIRECTORY + FORWARD_SLASH
+            + BUILD_LOGS_SUBDIRECTORY;
+    public static final String BUILD_LOG_FILENAME_TEMPLATE = "build_%d_log.txt";
+    public static final String LOG_TASK_CACHE_PREFIX = "LOG_TASK";
+    public static final String TASK_ID_PATH_VAR = "taskId";
+    public static final String LOG_GENERATION_INITIATED = "Log generation initiated.";
+    public static final String LOG_GENERATION_IN_PROGRESS = "Log generation in progress.";
+    public static final String LOG_GENERATION_FAILED = "Log generation failed.";
+    public static final String LOG_TASK_NOT_FOUND = "Log generation task not found for ID: %s";
+    public static final String INVALID_TASK_ID_FORMAT = "Invalid Task ID format. Expected UUID.";
+    public static final String BUILD_LOGS_TAG_NAME = "Build Logs";
+    public static final String BUILD_LOGS_TAG_DESCRIPTION = "API for generating and retrieving "
+            + "detailed build logs";
+    public static final String GENERATE_LOG_SUMMARY = "Generate Detailed Build Log";
+    public static final String GENERATE_LOG_DESCRIPTION = "Initiates asynchronous generation of a "
+            + "detailed log file for the specified build (by ID or name). Returns a task"
+            + " ID for tracking.";
+    public static final String GET_LOG_STATUS_SUMMARY = "Get Build Log Generation Status";
+    public static final String GET_LOG_STATUS_DESCRIPTION = "Checks the status (PENDING, "
+            + "COMPLETED, FAILED) of a build log generation task using its task ID.";
+    public static final String GET_LOG_FILE_SUMMARY = "Download Build Log File";
+    public static final String GET_LOG_FILE_DESCRIPTION = "Downloads the generated build log "
+            + "file if the task is COMPLETED. Returns appropriate status codes if PENDING, FAILED,"
+            + " or not found.";
+    public static final String TASK_ID_PARAM_DESCRIPTION = "The unique ID of the log generation "
+            + "task (UUID)";
+    public static final String TASK_ID_EXAMPLE = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
 }
