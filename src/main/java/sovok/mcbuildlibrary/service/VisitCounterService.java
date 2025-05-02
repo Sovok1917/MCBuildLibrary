@@ -1,8 +1,7 @@
-// file: src/main/java/sovok/mcbuildlibrary/service/VisitCounterService.java
 package sovok.mcbuildlibrary.service;
 
-import org.springframework.stereotype.Service;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.springframework.stereotype.Service;
 
 @Service
 public class VisitCounterService {
@@ -26,12 +25,5 @@ public class VisitCounterService {
      */
     public int getTotalRequestCount() {
         return totalRequestCount.get();
-    }
-
-    /**
-     * Resets the counter to zero. (Optional)
-     */
-    public void resetCounter() {
-        totalRequestCount.set(0);
     }
 }

@@ -18,22 +18,19 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // Register the interceptor to apply to all paths...
         registry.addInterceptor(visitCounterInterceptor)
-                .addPathPatterns("/**") // Apply to all paths initially
-                // ...but exclude specific paths
+                .addPathPatterns("/**")
                 .excludePathPatterns(
-                        "/visit-count",         // Don't count requests to the counter endpoint itself
-                        "/error",               // Don't count Spring Boot error dispatches
-                        "/css/**",              // Exclude static resources
+                        "/visit-count",
+                        "/error",
+                        "/css/**",
                         "/js/**",
                         "/images/**",
-                        "/webjars/**",          // Exclude webjars (used by Swagger UI etc.)
-                        "/swagger-ui.html",     // Exclude Swagger UI HTML page
-                        "/swagger-ui/**",       // Exclude Swagger UI resources
-                        "/v3/api-docs",         // Exclude OpenAPI spec endpoint
-                        "/v3/api-docs/**"       // Exclude OpenAPI spec resources
-                        // Add any other paths you want to exclude
-                );
+                        "/webjars/**",
+                        "/swagger-ui.html",
+                        "/swagger-ui/**",
+                        "/v3/api-docs",
+                        "/v3/api-docs/**"
+            );
     }
 }
