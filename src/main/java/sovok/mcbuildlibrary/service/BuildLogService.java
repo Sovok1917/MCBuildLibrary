@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException; // Keep import if needed elsewhere
 import java.util.function.Function;
 import org.hibernate.LazyInitializationException; // Specific import
 import org.slf4j.Logger;
@@ -67,7 +68,6 @@ public class BuildLogService {
      * @param cache        The cache for storing task status.
      * @param taskExecutor The executor for running async tasks.
      */
-    // Constructor injection remains preferred for mandatory dependencies
     public BuildLogService(BuildService buildService, InMemoryCache cache,
                            @Qualifier("taskExecutor") Executor taskExecutor) {
         this.buildService = buildService;
@@ -101,6 +101,7 @@ public class BuildLogService {
             } catch (IOException e) {
                 log.error("Failed to create build log directory: {}",
                         logDirPath.toAbsolutePath(), e);
+                // Consider if this failure should prevent service startup or be handled differently
             }
         }
     }
@@ -113,6 +114,8 @@ public class BuildLogService {
      * @param identifier The ID or exact name of the build.
      * @return A unique task ID (UUID string) for tracking the generation process.
      * @throws NoSuchElementException if the build identified by the identifier is not found.
+     * @throws RejectedExecutionException if the task cannot be submitted to the executor
+     *                                    (propagated from runAsync).
      */
     public String initiateLogGeneration(String identifier) {
         Build buildStub = findBuildByIdentifier(identifier);
@@ -121,23 +124,26 @@ public class BuildLogService {
         String cacheKey = InMemoryCache.generateKey(StringConstants.LOG_TASK_CACHE_PREFIX, taskId);
 
         TaskStatusDto initialStatus = TaskStatusDto.pending(taskId);
-        cache.put(cacheKey, initialStatus);
+        cache.put(cacheKey, initialStatus); // Set PENDING status
         log.info("Initiating log generation for build ID {} with task ID: {}", buildId, taskId);
 
         // Call the async/transactional method via the injected 'self' proxy
+        // Let RejectedExecutionException propagate from here if taskExecutor.execute throws it.
         CompletableFuture.runAsync(() -> self.performLogGeneration(buildId, taskId), taskExecutor)
-                .exceptionally(ex -> {
+                .exceptionally(ex -> { // Handles errors *during* async execution
                     log.error("Unhandled exception wrapper caught for async task ID {}: {}",
                             taskId, ex.getMessage(), ex);
                     Optional<TaskStatusDto> currentStatus = getTaskStatus(taskId);
+                    // Update status only if not already failed (avoids race conditions)
                     if (currentStatus.isEmpty()
                             || currentStatus.get().status() != TaskState.FAILED) {
                         updateTaskStatus(taskId, TaskStatusDto.failed(taskId,
                                 "Unexpected error during async execution wrapper."));
                     }
-                    return null;
+                    return null; // Required for exceptionally Void signature
                 });
 
+        // This is only reached if runAsync doesn't throw synchronously.
         return taskId;
     }
 
@@ -169,10 +175,11 @@ public class BuildLogService {
             Thread.currentThread().interrupt();
             updateTaskStatus(taskId, TaskStatusDto.failed(taskId,
                     "Task interrupted during processing."));
-            return;
+            return; // Exit if interrupted
         }
 
         try {
+            // Attempt to load the build fully for logging purposes
             Optional<Build> buildOpt = buildService.findBuildFullyLoadedForLog(buildId);
 
             if (buildOpt.isEmpty()) {
@@ -180,18 +187,19 @@ public class BuildLogService {
                         buildId, taskId);
                 updateTaskStatus(taskId, TaskStatusDto.failed(taskId,
                         "Build not found during generation."));
-                return;
+                return; // Exit if build not found
             }
             Build build = buildOpt.get();
 
             log.info("Task ID {}: Building log content...", taskId);
-            String logContent = buildLogContent(build);
+            String logContent = buildLogContent(build); // Assumes build is loaded
 
             Path logFilePath = Paths.get(StringConstants.BUILD_LOGS_DIRECTORY,
                     String.format(StringConstants.BUILD_LOG_FILENAME_TEMPLATE, buildId));
 
-            writeLogToFile(taskId, logFilePath, logContent);
+            writeLogToFile(taskId, logFilePath, logContent); // Can throw IOException
 
+            // If writeLogToFile succeeds, update status to COMPLETED
             updateTaskStatus(taskId, TaskStatusDto.completed(taskId, logFilePath.toString()));
 
         } catch (IOException ioe) {
@@ -200,29 +208,32 @@ public class BuildLogService {
             updateTaskStatus(taskId, TaskStatusDto.failed(taskId,
                     "Failed to write log file: " + ioe.getMessage()));
         } catch (LazyInitializationException lie) {
-            log.error("LazyInitializationException likely accessing schemFile for task ID {}: {}",
+            // This might occur if buildLogContent tries to access something not loaded,
+            // despite findBuildFullyLoadedForLog. The @Transactional should help.
+            log.error("LazyInitializationException during log content generation for task "
+                            + "ID {}: {}",
                     taskId, lie.getMessage());
             updateTaskStatus(taskId, TaskStatusDto.failed(taskId,
-                    "Internal error accessing build data (LOB)."));
+                    "Internal error accessing build data (Lazy Load)."));
         } catch (Exception e) {
-            // Catch any other unexpected errors
+            // Catch any other unexpected errors during the generation process
             log.error("Unexpected error during log generation for task ID {}: {}",
                     taskId, e.getMessage(), e);
             updateTaskStatus(taskId, TaskStatusDto.failed(taskId,
                     "Internal error during log generation: " + e.getClass().getSimpleName()));
-            // No re-throw here, allow task to complete with FAILED status
         }
     }
 
     /**
      * Writes the generated log content to the specified file path.
+     * Protected for potential testability override, though mocking is preferred.
      *
      * @param taskId      The task ID for logging purposes.
      * @param logFilePath The Path object representing the log file.
      * @param logContent  The string content to write.
      * @throws IOException if an I/O error occurs during writing.
      */
-    private void writeLogToFile(String taskId, Path logFilePath, String logContent)
+    protected void writeLogToFile(String taskId, Path logFilePath, String logContent)
             throws IOException {
         log.info("Task ID {}: Writing log file to {}...", taskId, logFilePath.toAbsolutePath());
         try (BufferedWriter writer = Files.newBufferedWriter(logFilePath)) {
@@ -248,7 +259,7 @@ public class BuildLogService {
     /**
      * Builds the string content for the build log file.
      * Assumes the necessary associations (collections) on the Build object are loaded.
-     * Attempts to lazily load the schematic file size.
+     * Attempts to lazily load the schematic file size within a try-catch block.
      *
      * @param build The Build object (potentially with eagerly loaded collections).
      * @return The formatted string content for the log file.
@@ -267,12 +278,13 @@ public class BuildLogService {
         sb.append("Build Name: ").append(build.getName()).append(LOG_LINE_BREAK)
                 .append(LOG_LINE_BREAK);
 
+        // Append details for collections safely
         appendCollectionDetails(sb, "Authors", build.getAuthors(), Author::getName);
         appendCollectionDetails(sb, "Themes", build.getThemes(), Theme::getName);
         appendCollectionDetails(sb, "Colors", build.getColors(), Color::getName);
         appendDescription(sb, build.getDescription());
         appendScreenshots(sb, build.getScreenshots());
-        appendSchematicInfo(sb, build);
+        appendSchematicInfo(sb, build); // Handles potential LazyInitException internally
 
         sb.append(LOG_SEPARATOR);
         sb.append("End of Log\n");
@@ -280,7 +292,7 @@ public class BuildLogService {
         return sb.toString();
     }
 
-    /** Appends details for a collection of BaseNamedEntity items. */
+    /** Appends details for a collection of BaseNamedEntity items, handling nulls. */
     private <T extends BaseNamedEntity> void appendCollectionDetails(StringBuilder sb,
                                                                      String sectionTitle,
                                                                      Collection<T> items,
@@ -289,6 +301,7 @@ public class BuildLogService {
         sb.append(sectionTitle).append(":\n");
         if (items != null && !items.isEmpty()) {
             items.stream()
+                    .filter(item -> item != null && item.getId() != null && item.getName() != null)
                     .sorted(Comparator.comparing(nameExtractor))
                     .forEach(item -> sb.append(LOG_PREFIX_ID).append(item.getId())
                             .append(LOG_PREFIX_NAME).append(item.getName())
@@ -299,19 +312,22 @@ public class BuildLogService {
         sb.append(LOG_LINE_BREAK);
     }
 
-    /** Appends the description section. */
+    /** Appends the description section, handling null or blank descriptions. */
     private void appendDescription(StringBuilder sb, String description) {
         sb.append("Description:\n");
         sb.append(description != null && !description.isBlank()
-                        ? description : LOG_NONE.stripTrailing())
+                        ? LOG_INDENT + description // Indent description for clarity
+                        : LOG_NONE.stripTrailing()) // Use constant if no description
                 .append(LOG_LINE_BREAK).append(LOG_LINE_BREAK);
     }
 
-    /** Appends the screenshots section. */
+    /** Appends the screenshots section, handling null or empty lists. */
     private void appendScreenshots(StringBuilder sb, List<String> screenshots) {
         sb.append("Screenshots:\n");
         if (screenshots != null && !screenshots.isEmpty()) {
-            screenshots.stream().sorted()
+            screenshots.stream()
+                    .filter(s -> s != null && !s.isBlank()) // Filter out null/blank entries
+                    .sorted()
                     .forEach(screenshot -> sb.append(LOG_INDENT).append("- ")
                             .append(screenshot).append(LOG_LINE_BREAK));
         } else {
@@ -320,11 +336,12 @@ public class BuildLogService {
         sb.append(LOG_LINE_BREAK);
     }
 
-    /** Appends the schematic file information section. */
+    /** Appends the schematic file information section, handling LOB loading errors. */
     private void appendSchematicInfo(StringBuilder sb, Build build) {
         sb.append("Schematic File:\n");
         byte[] schemBytes;
         try {
+            // Accessing LOB data - requires active transaction from performLogGeneration
             schemBytes = build.getSchemFile();
             if (schemBytes != null) {
                 sb.append(LOG_INDENT).append("Size: ").append(schemBytes.length)
@@ -333,10 +350,14 @@ public class BuildLogService {
                 sb.append(LOG_INDENT).append("(Not present)\n");
             }
         } catch (LazyInitializationException lie) {
-            log.warn("Could not lazy-load schemFile within buildLogContent: {}", lie.getMessage());
-            sb.append(LOG_INDENT).append("(Error loading file data)\n");
+            // Log warning, but don't fail the whole log generation
+            log.warn("Could not lazy-load schemFile within buildLogContent for build ID {}: {}",
+                    build.getId(), lie.getMessage());
+            sb.append(LOG_INDENT).append("(Error loading file data - LazyInit)\n");
         } catch (Exception e) {
-            log.error("Error accessing schemFile data: {}", e.getMessage(), e);
+            // Catch other potential errors during LOB access
+            log.error("Error accessing schemFile data for build ID {}: {}",
+                    build.getId(), e.getMessage(), e);
             sb.append(LOG_INDENT).append("(Error accessing file data)\n");
         }
         sb.append(LOG_LINE_BREAK);
@@ -357,6 +378,7 @@ public class BuildLogService {
 
     /**
      * Finds a build by its identifier (ID or name) using the BuildService.
+     * Private helper method.
      *
      * @param identifier The ID or exact name of the build.
      * @return The found Build object.
