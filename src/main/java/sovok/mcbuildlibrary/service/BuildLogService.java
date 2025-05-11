@@ -44,7 +44,7 @@ import sovok.mcbuildlibrary.model.Theme;
 public class BuildLogService {
 
     private static final Logger log = LoggerFactory.getLogger(BuildLogService.class);
-    private static final long ARTIFICIAL_DELAY_MS = 3000;
+    private static final long ARTIFICIAL_DELAY_MS = 20000;
 
     // Constants for log formatting
     private static final String LOG_PREFIX_ID = "  - ID: ";

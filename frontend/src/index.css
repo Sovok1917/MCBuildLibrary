@@ -1,0 +1,10 @@
+/* File: frontend/src/index.css (Simplified) */
+body {
+  margin: 0;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif; /* Ensure Roboto is primary */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f4f4f4; /* Or let MUI theme handle background */
+}
+
+/* Remove other styles if they conflict or are redundant with MUI */

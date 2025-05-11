@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @Configuration
-@EnableAsync // Can also be placed here instead of Application.java, but Application.java is common
+@EnableAsync
 public class AsyncConfig {
 
     private static final Logger log = LoggerFactory.getLogger(AsyncConfig.class);
@@ -18,10 +18,10 @@ public class AsyncConfig {
     public Executor taskExecutor() {
         log.debug("Creating Async Task Executor");
         final ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        // Configure core/max pool size based on expected load and system resources
-        executor.setCorePoolSize(5); // Start with 5 threads
-        executor.setMaxPoolSize(10); // Allow up to 10 threads
-        executor.setQueueCapacity(25); // Queue tasks if all threads are busy
+        
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(10);
+        executor.setQueueCapacity(25);
         executor.setThreadNamePrefix("BuildLogGen-");
         executor.initialize();
         log.info("Configured ThreadPoolTaskExecutor with CorePoolSize={}, MaxPoolSize={},"
