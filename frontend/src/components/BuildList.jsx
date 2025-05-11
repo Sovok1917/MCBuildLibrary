@@ -1,5 +1,6 @@
 // File: frontend/src/components/BuildList.jsx
 import React from 'react';
+import PropTypes from 'prop-types'; // Import PropTypes
 import { deleteBuild as apiDeleteBuild } from '../api/buildService';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -31,6 +32,7 @@ const fetchSchematicFile = async (buildIdentifier) => {
             const errorData = await response.json();
             errorMsg = errorData.detail || errorData.message || errorMsg;
         } catch (e) {
+            // If error response is not JSON, use the status text
             errorMsg = `${errorMsg} - ${response.statusText}`;
         }
         throw new Error(errorMsg);
@@ -39,7 +41,7 @@ const fetchSchematicFile = async (buildIdentifier) => {
 };
 
 function BuildList({ builds, onBuildDeleted, onEditBuild }) {
-    const { hasRole, isAuthenticated } = useAuth(); // Get auth state
+    const { hasRole, isAuthenticated } = useAuth();
     const isAdmin = isAuthenticated && hasRole('ROLE_ADMIN');
 
     const handleDelete = async (buildId, buildName) => {
@@ -50,9 +52,8 @@ function BuildList({ builds, onBuildDeleted, onEditBuild }) {
         if (window.confirm(`Are you sure you want to delete the build "${buildName}"?`)) {
             try {
                 await apiDeleteBuild(buildId);
-                // alert(`Build "${buildName}" deleted successfully.`); // Snackbar might be better
                 if (onBuildDeleted) {
-                    onBuildDeleted(buildId); // Pass ID for potential state update
+                    onBuildDeleted(buildId);
                 }
             } catch (err) {
                 alert(`Failed to delete build: ${err.message}`);
@@ -68,8 +69,8 @@ function BuildList({ builds, onBuildDeleted, onEditBuild }) {
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            const filename = `${buildName.replace(/[^a-z0-9_.-]/gi, '_')}.schem`;
-            a.download = filename;
+            // Inlined filename variable
+            a.download = `${buildName.replace(/[^a-z0-9_.-]/gi, '_')}.schem`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -82,11 +83,11 @@ function BuildList({ builds, onBuildDeleted, onEditBuild }) {
 
     const renderChips = (items, icon) => {
         if (!items || items.length === 0) {
-            return <Typography variant="body2" color="text.secondary" component="span" sx={{ml: icon ? 0 : 1}}>N/A</Typography>;
+            return <Typography variant="body2" color="text.secondary" component="span" sx={{ ml: icon ? 0 : 1 }}>N/A</Typography>;
         }
         return items.map((item) => (
             <Chip
-                key={item.id || item.name} // Ensure unique key
+                key={item.id || item.name}
                 icon={icon}
                 label={item.name}
                 size="small"
@@ -95,13 +96,14 @@ function BuildList({ builds, onBuildDeleted, onEditBuild }) {
         ));
     };
 
+    // Accessing builds.length and builds.map here
     if (!builds || builds.length === 0) {
         return <Alert severity="info" sx={{ mt: 3 }}>No builds found. Try adjusting filters or adding new builds.</Alert>;
     }
 
     return (
-        <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mt: 0 }}> {/* Adjusted spacing and mt */}
-            {builds.map((build) => {
+        <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mt: 0 }}>
+            {builds.map((build) => { // Accessing builds.map here
                 const firstScreenshotUrl = build.screenshots && build.screenshots.length > 0
                     ? build.screenshots[0]
                     : null;
@@ -112,21 +114,35 @@ function BuildList({ builds, onBuildDeleted, onEditBuild }) {
                             {firstScreenshotUrl ? (
                                 <CardMedia
                                     component="img"
-                                    sx={{ height: 160, objectFit: 'cover' }} // Slightly taller
+                                    sx={{ height: 160, objectFit: 'cover' }}
                                     image={firstScreenshotUrl}
                                     alt={`Screenshot of ${build.name}`}
-                                    onError={(e) => { e.target.style.display = 'none'; /* Hide if broken */ }}
+                                    onError={(e) => { e.target.style.display = 'none'; }}
                                 />
                             ) : (
                                 <Box sx={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'grey.200', color: 'grey.500' }}>
                                     <ImageIcon fontSize="large" />
                                 </Box>
                             )}
-                            <CardContent sx={{ flexGrow: 1, pb: 1 }}> {/* Reduced paddingBottom */}
+                            <CardContent sx={{ flexGrow: 1, pb: 1 }}>
                                 <Typography gutterBottom variant="h5" component="div" noWrap title={build.name}>
                                     {build.name}
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary" paragraph sx={{ maxHeight: '3.6em', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                                {/* Replaced deprecated 'paragraph' prop with 'gutterBottom' */}
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    gutterBottom
+                                    sx={{
+                                        maxHeight: '3.6em', // Approx 2 lines
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        // mb: 1, // If gutterBottom isn't enough, add margin
+                                    }}
+                                >
                                     {build.description || 'No description available.'}
                                 </Typography>
                                 <Box sx={{ mb: 0.5 }}>
@@ -174,5 +190,29 @@ function BuildList({ builds, onBuildDeleted, onEditBuild }) {
         </Grid>
     );
 }
+
+// Define propTypes for BuildList
+BuildList.propTypes = {
+    builds: PropTypes.arrayOf(PropTypes.shape({
+        id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+        name: PropTypes.string.isRequired,
+        description: PropTypes.string,
+        authors: PropTypes.arrayOf(PropTypes.shape({
+            id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+            name: PropTypes.string,
+        })),
+        themes: PropTypes.arrayOf(PropTypes.shape({
+            id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+            name: PropTypes.string,
+        })),
+        colors: PropTypes.arrayOf(PropTypes.shape({
+            id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+            name: PropTypes.string,
+        })),
+        screenshots: PropTypes.arrayOf(PropTypes.string),
+    })).isRequired, // builds array is required
+    onBuildDeleted: PropTypes.func.isRequired,
+    onEditBuild: PropTypes.func.isRequired,
+};
 
 export default BuildList;

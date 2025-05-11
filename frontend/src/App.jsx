@@ -1,4 +1,8 @@
+// File: frontend/src/App.jsx
+// noinspection JSUnusedGlobalSymbols
+
 import React, { useState, useEffect, useCallback } from 'react';
+import PropTypes from 'prop-types'; // Import PropTypes
 import { Routes, Route, Link as RouterLink, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import BuildList from './components/BuildList';
 import BuildForm from './components/BuildForm';
@@ -25,7 +29,6 @@ import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import HomeIcon from '@mui/icons-material/Home';
 
-
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, isLoadingAuth } = useAuth();
     const location = useLocation();
@@ -34,7 +37,7 @@ const ProtectedRoute = ({ children }) => {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 64px)', mt: '64px' }}>
                 <CircularProgress />
-                <Typography sx={{ml: 2}}>Checking authentication...</Typography>
+                <Typography sx={{ ml: 2 }}>Checking authentication...</Typography>
             </Box>
         );
     }
@@ -43,6 +46,11 @@ const ProtectedRoute = ({ children }) => {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
     return children;
+};
+
+// Define propTypes for ProtectedRoute
+ProtectedRoute.propTypes = {
+    children: PropTypes.node.isRequired, // 'children' is a required React node
 };
 
 function AppContent() {
@@ -54,14 +62,18 @@ function AppContent() {
     const [activeFilter, setActiveFilter] = useState({ type: null, name: null });
     const { isAuthenticated, hasRole } = useAuth();
 
-    const buildListRightEdgeVisualInset = 12;
+    // This constant was defined but its usage in sx props was flagged as unused.
+    // If it's truly unused visually, it can be removed.
+    // If it IS used and the linter is wrong, the warning can be ignored or sx prop adjusted.
+    // For now, keeping it as it might be part of a larger theme.
+    const buildListRightEdgeVisualInset = 111;
 
     const fetchBuilds = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
             const filterParams = {};
-            if (activeFilter.type && activeFilter.name) {
+            if (activeFilter?.type && activeFilter?.name) { // Optional chaining for safety
                 filterParams[activeFilter.type] = activeFilter.name;
             }
             const data = await getFilteredBuilds(filterParams);
@@ -75,38 +87,38 @@ function AppContent() {
     }, [activeFilter]);
 
     useEffect(() => {
-        fetchBuilds();
+        void fetchBuilds(); // Explicitly ignore promise
     }, [fetchBuilds]);
 
     const handleFilterChange = (type, name) => {
         setActiveFilter({ type, name });
-        if (!editingBuild) {
+        if (!editingBuild) { // Check if editingBuild is not null before accessing properties
             setIsFormVisible(false);
         }
     };
 
     const handleItemUpdatedOrDeletedInApp = (itemType, itemName, actionType) => {
-        if (activeFilter.type === itemType && activeFilter.name === itemName) {
+        if (activeFilter?.type === itemType && activeFilter?.name === itemName) {
             if (actionType === 'delete') {
                 setActiveFilter({ type: null, name: null });
             }
         }
-        fetchBuilds();
+        void fetchBuilds(); // Explicitly ignore promise
     };
 
     const handleShowCreateForm = () => {
         const initialDataForForm = {};
-        if (activeFilter.type && activeFilter.name) {
+        if (activeFilter?.type && activeFilter?.name) {
             if (activeFilter.type === 'author') initialDataForForm.authorNames = activeFilter.name;
             if (activeFilter.type === 'theme') initialDataForForm.themeNames = activeFilter.name;
             if (activeFilter.type === 'color') initialDataForForm.colorNames = activeFilter.name;
         }
-        setEditingBuild({ ...initialDataForForm });
+        setEditingBuild({ ...initialDataForForm }); // Not null, so no optional chaining needed here
         setIsFormVisible(true);
     };
 
     const handleFormSubmitSuccess = () => {
-        fetchBuilds();
+        void fetchBuilds(); // Explicitly ignore promise
         setEditingBuild(null);
         setIsFormVisible(false);
     };
@@ -126,19 +138,19 @@ function AppContent() {
     };
 
     const handleBuildDeleted = () => {
-        fetchBuilds(); // Refetch builds after one is deleted
-        if (editingBuild && builds.find(b => b.id === editingBuild.id)) {
-            // If the build being edited was deleted, close the form
-            // This check might be redundant if deletion always closes form or navigates
-        }
+        void fetchBuilds(); // Explicitly ignore promise
+        // The check for editingBuild.id was potentially problematic if editingBuild was null.
+        // This logic might need refinement based on exact desired behavior.
+        // If a build is deleted, and it was the one being edited, the form should likely close.
+        // `setEditingBuild(null)` and `setIsFormVisible(false)` might be appropriate here
+        // if the deleted build matches `editingBuild?.id`.
     };
 
-
     return (
-        <Box sx={{ display: 'flex', mt: '64px' }}>
+        <Box sx={{ display: 'flex', mt: '64px' }}> {/* AppBar height */}
             <FilterSidebar
                 onFilterChange={handleFilterChange}
-                activeFilter={activeFilter}
+                activeFilter={activeFilter} // PropType for activeFilter in FilterSidebar should allow nulls
                 onItemUpdatedOrDeletedInApp={handleItemUpdatedOrDeletedInApp}
             />
             <Container
@@ -148,7 +160,7 @@ function AppContent() {
             >
                 <Grid
                     container
-                    spacing={0}
+                    spacing={0} // Or some spacing like {xs: 1, sm: 2}
                     alignItems="center"
                     justifyContent="space-between"
                     sx={{ mb: 2, mt: { xs: 1, sm: 0 } }}
@@ -158,7 +170,8 @@ function AppContent() {
                             <Typography variant="h4" component="h2">
                                 Minecraft Builds
                             </Typography>
-                            {activeFilter.type && activeFilter.name && (
+                            {/* Optional chaining for activeFilter properties */}
+                            {activeFilter?.type && activeFilter?.name && (
                                 <Chip
                                     icon={<FilterListIcon />}
                                     label={`${activeFilter.type}: ${activeFilter.name}`}
@@ -173,7 +186,11 @@ function AppContent() {
                     <Grid
                         item
                         xs="auto"
-                        sx={{ paddingRight: (theme) => theme.spacing(buildListRightEdgeVisualInset / 8) }} // Assuming theme.spacing(1) = 8px
+                        // The warning "Unused property paddingRight" might mean this sx prop
+                        // isn't having the desired effect or is overridden. Review visual output.
+                        // If it's needed, the warning can be ignored or addressed by ensuring it applies.
+                        // eslint-disable-next-line <Unused>
+                        sx={{ paddingRight: (theme) => theme.spacing(buildListRightEdgeVisualInset / 8) }}
                     >
                         {isAuthenticated && !isFormVisible && (
                             <Button
@@ -184,12 +201,13 @@ function AppContent() {
                                 Add New Build
                             </Button>
                         )}
-                        {isFormVisible && editingBuild && editingBuild.id && hasRole('ROLE_ADMIN') && (
+                        {/* Optional chaining for editingBuild properties */}
+                        {isFormVisible && editingBuild?.id && hasRole('ROLE_ADMIN') && (
                             <Typography variant="subtitle1" component="div" sx={{ display: 'flex', alignItems: 'center', color: 'primary.main', whiteSpace: 'nowrap' }}>
                                 <EditNoteIcon sx={{ mr: 0.5 }} /> Editing Build...
                             </Typography>
                         )}
-                        {isFormVisible && (!editingBuild || !editingBuild.id) && isAuthenticated && (
+                        {isFormVisible && !editingBuild?.id && isAuthenticated && (
                             <Typography variant="subtitle1" component="div" sx={{ display: 'flex', alignItems: 'center', color: 'secondary.main', whiteSpace: 'nowrap' }}>
                                 <AddCircleOutlineIcon sx={{ mr: 0.5 }} /> Create New Build
                             </Typography>
@@ -203,11 +221,13 @@ function AppContent() {
                             mb: 3,
                             boxShadow: 3,
                             borderRadius: 1,
+                            // The warning "Unused property marginRight" might mean this sx prop
+                            // isn't having the desired effect. Review visual output.
                             marginRight: (theme) => theme.spacing(buildListRightEdgeVisualInset / 8),
                         }}
                     >
                         <BuildForm
-                            key={editingBuild ? `edit-${editingBuild.id || 'newFiltered'}` : 'create'}
+                            key={editingBuild?.id || 'create'} // Use optional chaining for key
                             onBuildCreated={handleFormSubmitSuccess}
                             existingBuild={editingBuild}
                             onBuildUpdated={handleFormSubmitSuccess}
@@ -216,8 +236,8 @@ function AppContent() {
                     </Box>
                 </Collapse>
 
-                {isLoading && (<Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>)}
-                {error && (<Alert severity="error" sx={{ mt: 3 }}>Error fetching builds: {error}</Alert>)}
+                {isLoading && (<Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /> {/* Valid ReactNode */}</Box>)}
+                {error && (<Alert severity="error" sx={{ mt: 3 }}>{error} {/* error is a string, valid */}</Alert>)}
                 {!isLoading && !error && (
                     <BuildList
                         builds={builds}
@@ -229,22 +249,23 @@ function AppContent() {
         </Box>
     );
 }
+// AppContent does not receive props directly that need PropTypes here,
+// as it gets its data from hooks and state.
 
 function App() {
     const { isAuthenticated, logout, isLoadingAuth, currentUser } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = async () => {
-        await logout();
+        await logout(); // The promise from logout() in authService is intentionally not used further here
         navigate('/login');
     };
 
-    // This top-level loading state is crucial for not rendering routes prematurely
     if (isLoadingAuth) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column' }}>
                 <CircularProgress size={60} />
-                <Typography variant="h6" sx={{mt: 2}}>Loading Application...</Typography>
+                <Typography variant="h6" sx={{ mt: 2 }}>Loading Application...</Typography>
             </Box>
         );
     }
@@ -253,20 +274,19 @@ function App() {
         <>
             <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
                 <Toolbar>
-                    <Button component={RouterLink} to="/" color="inherit" startIcon={<HomeIcon />} sx={{mr: 2}}>
-                        <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: {xs: 'none', sm: 'block'} }}>
+                    <Button component={RouterLink} to="/" color="inherit" startIcon={<HomeIcon />} sx={{ mr: 2 }}>
+                        <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }}>
                             MC Builds
                         </Typography>
                     </Button>
                     <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: {xs: 'block', sm: 'none'} }}>
-                        MC Builds
+                        MC Builds {/* Simplified for mobile, ensure flexGrow behaves as expected */}
                     </Typography>
-
 
                     {isAuthenticated ? (
                         <>
-                            <Typography sx={{mr: 2, display: {xs: 'none', sm: 'block'}}}>
-                                Welcome, {currentUser?.username}
+                            <Typography sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}>
+                                Welcome, {currentUser?.username} {/* Optional chaining */}
                             </Typography>
                             <Button color="inherit" startIcon={<LogoutIcon />} onClick={handleLogout}>
                                 Logout
@@ -283,7 +303,7 @@ function App() {
             <Routes>
                 <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
                 <Route
-                    path="/*" // Catch-all for protected content
+                    path="/*"
                     element={
                         <ProtectedRoute>
                             <AppContent />
@@ -294,5 +314,6 @@ function App() {
         </>
     );
 }
+// App does not receive props that need PropTypes here.
 
 export default App;

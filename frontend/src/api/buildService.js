@@ -1,21 +1,6 @@
 // File: frontend/src/api/buildService.js
 
 const API_BASE_URL = '/api/builds';
-
-/**
- * Fetches all builds from the backend.
- * @returns {Promise<Array<Object>>} A promise that resolves to an array of build objects.
- * @throws {Error} If the network response is not ok.
- */
-export const getAllBuilds = async () => {
-    const response = await fetch(API_BASE_URL);
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Network response was not ok' }));
-        throw new Error(errorData.detail || errorData.message || 'Failed to fetch builds');
-    }
-    return response.json();
-};
-
 /**
  * Fetches builds based on filter criteria.
  * @param {Object} filters - An object containing filter criteria.
@@ -40,24 +25,6 @@ export const getFilteredBuilds = async ({ author, theme, color }) => {
     }
     return response.json();
 };
-
-
-/**
- * Fetches a single build by its identifier (ID or name).
- * @param {string|number} identifier The ID or name of the build.
- * @returns {Promise<Object>} A promise that resolves to the build object.
- * @throws {Error} If the network response is not ok.
- */
-export const getBuildByIdentifier = async (identifier) => {
-    // ... (implementation from previous steps)
-    const response = await fetch(`${API_BASE_URL}/${identifier}`);
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Network response was not ok' }));
-        throw new Error(errorData.detail || errorData.message || `Failed to fetch build ${identifier}`);
-    }
-    return response.json();
-};
-
 /**
  * Creates a new build.
  * @param {FormData} buildData - The build data as FormData.

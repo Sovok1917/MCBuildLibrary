@@ -11,7 +11,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Paper from '@mui/material/Paper';
 import Container from '@mui/material/Container'; // <-- ADD THIS IMPORT
-import Link from '@mui/material/Link';
 
 function Login() {
     const [username, setUsername] = useState('');
