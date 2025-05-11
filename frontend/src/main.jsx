@@ -2,18 +2,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
-import './index.css'; // Your global styles
+import './index.css';
+import { AuthProvider } from './context/AuthContext.jsx';
+import { BrowserRouter } from 'react-router-dom';
 
 import CssBaseline from '@mui/material/CssBaseline';
-// import { ThemeProvider, createTheme } from '@mui/material/styles'; // We'll use this later for custom themes
-
-// const theme = createTheme(); // Default theme
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         {/* <ThemeProvider theme={theme}> */}
-        <CssBaseline /> {/* Apply baseline styling */}
-        <App />
+        <CssBaseline />
+        <BrowserRouter>
+            <AuthProvider>
+                <App />
+            </AuthProvider>
+        </BrowserRouter>
         {/* </ThemeProvider> */}
     </React.StrictMode>,
 );

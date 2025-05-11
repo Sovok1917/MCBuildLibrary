@@ -10,6 +10,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder; // Import this
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -28,9 +31,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
+    
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-
+    
     /**
      * Handles bean validation constraint violations.
      *
@@ -44,7 +47,6 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
             String path = violation.getPropertyPath().toString();
-            // Extract the simple parameter name from the full path
             String parameterName = path;
             int lastDot = path.lastIndexOf('.');
             if (lastDot != -1 && lastDot < path.length() - 1) {
@@ -57,7 +59,7 @@ public class GlobalExceptionHandler {
         return new ValidationErrorResponse(HttpStatus.BAD_REQUEST,
                 StringConstants.VALIDATION_FAILED_MESSAGE, errors);
     }
-
+    
     /**
      * Handles validation errors on @RequestBody objects annotated with @Valid.
      *
@@ -79,7 +81,7 @@ public class GlobalExceptionHandler {
         return new ValidationErrorResponse(HttpStatus.BAD_REQUEST,
                 StringConstants.VALIDATION_FAILED_MESSAGE, errors);
     }
-
+    
     /**
      * Handles data binding errors (e.g., type mismatches in form data).
      *
@@ -99,7 +101,7 @@ public class GlobalExceptionHandler {
         return new ValidationErrorResponse(HttpStatus.BAD_REQUEST,
                 StringConstants.INPUT_ERROR_MESSAGE, errors);
     }
-
+    
     /**
      * Handles missing required request parameters.
      *
@@ -118,7 +120,7 @@ public class GlobalExceptionHandler {
                 ex.getParameterName());
         return pd;
     }
-
+    
     /**
      * Handles missing required parts in multipart requests (e.g., file uploads).
      *
@@ -137,7 +139,7 @@ public class GlobalExceptionHandler {
                 ex.getRequestPartName());
         return pd;
     }
-
+    
     /**
      * Handles type mismatch errors for request parameters or path variables.
      *
@@ -152,12 +154,12 @@ public class GlobalExceptionHandler {
         Object invalidValue = ex.getValue();
         Class<?> requiredType = ex.getRequiredType();
         String expectedType = (requiredType != null) ? requiredType.getSimpleName() : "unknown";
-
+        
         if (requiredType == null) {
             log.warn("Could not determine required type for parameter '{}'. Value provided: '{}'",
                     paramName, invalidValue);
         }
-
+        
         String detail = String.format(StringConstants.TYPE_MISMATCH_MESSAGE,
                 invalidValue, paramName, expectedType);
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
@@ -165,7 +167,7 @@ public class GlobalExceptionHandler {
         log.warn(StringConstants.LOG_MESSAGE_FORMAT, StringConstants.INPUT_ERROR_MESSAGE, detail);
         return pd;
     }
-
+    
     /**
      * Handles illegal argument exceptions, often used for semantic validation errors.
      * Includes specific handling for invalid Task ID format messages.
@@ -178,20 +180,18 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleIllegalArgumentException(IllegalArgumentException ex) {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
                 ex.getMessage());
-        // Set a more specific title if the message indicates the invalid Task ID format
         if (ex.getMessage() != null
                 && ex.getMessage().equals(StringConstants.INVALID_TASK_ID_FORMAT)) {
             pd.setTitle(StringConstants.INVALID_TASK_ID_FORMAT);
         } else {
-            pd.setTitle(StringConstants.INPUT_ERROR_MESSAGE); // Default title
+            pd.setTitle(StringConstants.INPUT_ERROR_MESSAGE);
         }
         log.warn(StringConstants.LOG_MESSAGE_FORMAT, pd.getTitle(), ex.getMessage());
         return pd;
     }
-
+    
     /**
      * Handles cases where a requested resource or element is not found.
-     * Used for Build not found, Task ID not found, Log file not found, Task failed scenarios.
      *
      * @param ex The NoSuchElementException thrown.
      * @return A ProblemDetail indicating the resource was not found.
@@ -200,12 +200,12 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ProblemDetail handleNoSuchElementException(NoSuchElementException ex) {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        pd.setTitle(StringConstants.NOT_FOUND_MESSAGE); // Keep generic "Not Found" title
+        pd.setTitle(StringConstants.NOT_FOUND_MESSAGE);
         log.warn(StringConstants.LOG_MESSAGE_FORMAT, StringConstants.NOT_FOUND_MESSAGE,
                 ex.getMessage());
         return pd;
     }
-
+    
     /**
      * Handles requests for non-existent resource paths within the application context.
      *
@@ -221,7 +221,7 @@ public class GlobalExceptionHandler {
                 ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
     }
-
+    
     /**
      * Handles illegal state exceptions, often indicating an operation cannot be performed
      * due to the current state (e.g., deleting an entity with active associations).
@@ -237,7 +237,7 @@ public class GlobalExceptionHandler {
         log.warn("Conflict: {}", ex.getMessage());
         return pd;
     }
-
+    
     /**
      * Handles exceptions specific to accessing application log files (not build logs).
      *
@@ -254,7 +254,31 @@ public class GlobalExceptionHandler {
         pd.setTitle("Log Access Error");
         return pd;
     }
-
+    
+    /**
+     * Handles access denied exceptions when a user tries to access a resource
+     * they are not authorized for.
+     *
+     * @param ex The AccessDeniedException thrown.
+     * @return A ProblemDetail indicating forbidden access.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ProblemDetail handleAccessDeniedException(AccessDeniedException ex) {
+        // Correct way to get Authentication object
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = (authentication != null && authentication.getName() != null)
+                ? authentication.getName() : "anonymous";
+        
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN,
+                "You do not have permission to access this resource or perform this action.");
+        pd.setTitle("Access Denied");
+        log.warn("Access Denied: User '{}' attempted action for which they are not authorized. "
+                        + "Original message: {}",
+                username, ex.getMessage());
+        return pd;
+    }
+    
     /**
      * Generic fallback handler for any other uncaught exceptions.
      *
@@ -264,8 +288,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ProblemDetail handleGenericException(Exception ex) {
-        // Check if it's one of the exceptions that should have been caught by more
-        // specific handlers
         if (ex instanceof MissingServletRequestPartException
                 || ex instanceof MissingServletRequestParameterException
                 || ex instanceof IllegalArgumentException
@@ -274,14 +296,14 @@ public class GlobalExceptionHandler {
                 || ex instanceof BindException
                 || ex instanceof NoSuchElementException
                 || ex instanceof IllegalStateException
-                || ex instanceof LogAccessException) {
+                || ex instanceof LogAccessException
+                || ex instanceof AccessDeniedException) {
             log.warn("Exception handled by generic handler but should have been caught earlier:"
                     + " {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
         } else {
-            // Log truly unexpected exceptions as errors
             log.error("Unhandled exception occurred: {}", ex.getMessage(), ex);
         }
-
+        
         String message = "An unexpected internal error occurred. Please contact support.";
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
                 message);
