@@ -1,7 +1,26 @@
-# File: MCBuildLibrary/Dockerfile.backend
-FROM eclipse-temurin:17-jre-jammy
+# File: Dockerfile.backend
+# Use an official OpenJDK runtime as a parent image
+FROM eclipse-temurin:17-jdk-jammy
+
+# Set the working directory in the container
 WORKDIR /app
-ARG JAR_FILE=target/mcbuildlibrary-0.0.1-SNAPSHOT.jar
-COPY ${JAR_FILE} app.jar
+
+# Arguments for JAR file name and path (can be overridden at build time)
+ARG JAR_FILE_NAME=MCBuildLibrary-0.0.1-SNAPSHOT.jar
+ARG JAR_FILE_PATH=target
+
+# Copy the executable JAR file from the specified path to the working directory
+COPY ${JAR_FILE_PATH}/${JAR_FILE_NAME} app.jar
+
+# Make port 8080 available to the world outside this container
 EXPOSE 8080
-ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/app/app.jar"]
+
+# Define environment variables for database connection (placeholders)
+# These should be set in docker-compose.yml or via .env file
+ENV DB_URL=jdbc:postgresql://your-db-host:5432/your-db-nam
+ENV DB_USERNAME=your-db-user
+ENV DB_PASSWORD=your-db-password
+ENV APP_DEFAULT_ADMIN_PASSWORD=your_secure_admin_password_docker
+
+# Run the JAR file
+ENTRYPOINT ["java", "-jar", "app.jar"]
