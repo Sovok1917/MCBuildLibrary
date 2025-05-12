@@ -469,4 +469,44 @@ public class BuildController {
                                     StringConstants.NOT_FOUND_MESSAGE)));
         }
     }
+    
+    /**
+     * Finds builds related to a specific entity (Author, Theme, Color) by its ID.
+     *
+     * @param type The type of the entity ("author", "theme", "color").
+     * @param id   The ID of the entity.
+     * @return ResponseEntity containing a list of related Builds.
+     */
+    @Operation(summary = "Find builds by related entity ID", description = "Finds builds "
+            + "associated with a specific Author, Theme, or Color ID.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200",
+            description = "Successfully found related builds (list might be empty)",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = Build[].class))), @ApiResponse(
+            responseCode = "400", description = "Invalid entity type or ID format provided",
+            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+            // 404 is implicitly handled if the ID leads to no builds, returning empty list.
+            // If 404 is needed when the *parent* entity (author/theme/color) doesn't exist,
+            // the service layer would need adjustment.
+    })
+    @GetMapping("/related")
+    public ResponseEntity<List<Build>> getBuildsByRelatedEntity(
+            @Parameter(description = "Type of the related entity", required = true,
+                    example = "author", schema = @Schema(allowableValues = {"author", "theme",
+                        "color"}))
+            @RequestParam("type") @NotBlank String type,
+            @Parameter(description = "ID of the related entity", required = true, example = "1")
+            @RequestParam("id") @NotNull Long id) {
+        
+        // Basic validation for type - can be enhanced
+        String lowerCaseType = type.toLowerCase();
+        if (!List.of(StringConstants.AUTHOR.toLowerCase(), StringConstants.THEME.toLowerCase(),
+                StringConstants.COLOR.toLowerCase()).contains(lowerCaseType)) {
+            throw new IllegalArgumentException("Invalid entity type provided: " + type);
+        }
+        
+        List<Build> relatedBuilds = buildService.findBuildsByRelatedEntity(lowerCaseType, id);
+        return ResponseEntity.ok(relatedBuilds);
+    }
 }

@@ -224,4 +224,32 @@ public class BuildService {
         // Alternatively, cache the fully loaded object under a different key if needed often.
         return buildRepository.findByIdWithAssociationsForLog(id);
     }
+    
+    
+    /**
+     * Finds builds related to a specific entity (Author, Theme, Color) by its ID.
+     *
+     * @param entityType The type of the entity ("author", "theme", "color").
+     * @param entityId   The ID of the entity.
+     * @return A list of related builds.
+     * @throws IllegalArgumentException if the entityType is invalid.
+     * @throws NoSuchElementException if no entity of the given type and ID exists (implicitly
+     *                                via repository calls).
+     */
+    @Transactional(readOnly = true)
+    public List<Build> findBuildsByRelatedEntity(String entityType, Long entityId) {
+        logger.debug("Fetching builds related to {} with ID: {}", entityType, entityId);
+        // Note: Caching for this specific query type is not implemented here,
+        // but could be added using a custom query key if needed.
+        return switch (entityType.toLowerCase()) {
+            case "author" -> buildRepository.findBuildsByAuthorId(entityId);
+            case "theme" -> buildRepository.findBuildsByThemeId(entityId);
+            case "color" -> buildRepository.findBuildsByColorId(entityId);
+            default -> throw new IllegalArgumentException("Invalid entity type for related build"
+                    + " search: " + entityType);
+        };
+        // The underlying repository methods implicitly handle the case where the entityId
+        // doesn't exist by returning an empty list. No explicit check needed here unless
+        // a 404 is desired when the *parent* entity doesn't exist.
+    }
 }

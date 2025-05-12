@@ -1,37 +1,47 @@
 // File: frontend/src/api/buildService.js
 
 const API_BASE_URL = '/api/builds';
+
 /**
  * Fetches builds based on filter criteria.
  * @param {Object} filters - An object containing filter criteria.
- * @param {string} [filters.author] - Author name to filter by.
- * @param {string} [filters.theme] - Theme name to filter by.
- * @param {string} [filters.color] - Color name to filter by.
+ * @param {string} [filters.name] - Build name to filter by (fuzzy match).
+ * @param {string} [filters.author] - Author name to filter by (fuzzy match).
+ * @param {string} [filters.theme] - Theme name to filter by (fuzzy match).
+ * @param {string} [filters.color] - Color name to filter by (fuzzy match).
  * @returns {Promise<Array<Object>>} A promise that resolves to an array of filtered build objects.
  */
-export const getFilteredBuilds = async ({ author, theme, color }) => {
+export const getFilteredBuilds = async ({ name, author, theme, color }) => {
     const queryParams = new URLSearchParams();
+    // Add the name parameter if it exists
+    if (name) queryParams.append('name', name);
     if (author) queryParams.append('author', author);
     if (theme) queryParams.append('theme', theme);
     if (color) queryParams.append('color', color);
 
     const queryString = queryParams.toString();
+    // If queryString is empty, fetch all builds from the base URL
     const url = queryString ? `${API_BASE_URL}/query?${queryString}` : API_BASE_URL;
+
+    console.log(`Fetching builds from URL: ${url}`); // Added for debugging
 
     const response = await fetch(url);
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Network response was not ok' }));
+        const errorData = await response.json().catch(() => ({
+            message: 'Network response was not ok'
+        }));
         throw new Error(errorData.detail || errorData.message || 'Failed to fetch filtered builds');
     }
     return response.json();
 };
+
 /**
  * Creates a new build.
  * @param {FormData} buildData - The build data as FormData.
  * @returns {Promise<Object>} A promise that resolves to the created build object.
  */
 export const createBuild = async (buildData) => {
-    // ... (implementation from previous steps)
+    // ... (implementation remains the same)
     const response = await fetch(API_BASE_URL, {
         method: 'POST',
         body: buildData,
@@ -54,7 +64,7 @@ export const createBuild = async (buildData) => {
  * @returns {Promise<Object>} A promise that resolves to the updated build object.
  */
 export const updateBuild = async (identifier, buildData) => {
-    // ... (implementation from previous steps)
+    // ... (implementation remains the same)
     const response = await fetch(`${API_BASE_URL}/${identifier}`, {
         method: 'PUT',
         body: buildData,
@@ -76,7 +86,7 @@ export const updateBuild = async (identifier, buildData) => {
  * @returns {Promise<void>} A promise that resolves when the build is deleted.
  */
 export const deleteBuild = async (identifier) => {
-    // ... (implementation from previous steps)
+    // ... (implementation remains the same)
     const response = await fetch(`${API_BASE_URL}/${identifier}`, {
         method: 'DELETE',
     });
@@ -88,4 +98,29 @@ export const deleteBuild = async (identifier) => {
         } catch (e) { /* Ignore */ }
         throw new Error(errorMessage);
     }
+};
+
+/**
+ * Fetches builds related to a specific entity ID.
+ * @param {string} type - The type of the entity ('author', 'theme', 'color').
+ * @param {number|string} id - The ID of the entity.
+ * @returns {Promise<Array<Object>>} A promise that resolves to an array of related build objects.
+ */
+export const getBuildsByRelatedEntity = async (type, id) => {
+    // ... (implementation remains the same)
+    if (!type || id == null) { // Check for null or undefined id
+        throw new Error('Entity type and ID are required for related build search.');
+    }
+    const queryParams = new URLSearchParams();
+    queryParams.append('type', type);
+    queryParams.append('id', id.toString()); // Ensure ID is a string for URLSearchParams
+
+    const url = `${API_BASE_URL}/related?${queryParams.toString()}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Network response was not ok' }));
+        throw new Error(errorData.detail || errorData.message || `Failed to fetch builds related to ${type} ID ${id}`);
+    }
+    return response.json();
 };

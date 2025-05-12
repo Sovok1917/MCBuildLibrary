@@ -1,4 +1,5 @@
 // File: frontend/src/components/FilterSidebar.jsx
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { getAllAuthors, updateAuthor, deleteAuthor } from '../api/authorService';
@@ -6,6 +7,7 @@ import { getAllThemes, updateTheme, deleteTheme } from '../api/themeService';
 import { getAllColors, updateColor, deleteColor } from '../api/colorService';
 import { useAuth } from '../context/AuthContext.jsx';
 
+// Material UI Imports...
 import Box from '@mui/material/Box';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
@@ -21,6 +23,7 @@ import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import Tooltip from '@mui/material/Tooltip';
 
+// Icons...
 import PeopleIcon from '@mui/icons-material/People';
 import CategoryIcon from '@mui/icons-material/Category';
 import PaletteIcon from '@mui/icons-material/Palette';
@@ -35,10 +38,10 @@ import CancelIcon from '@mui/icons-material/Cancel';
 
 const MAX_INITIAL_ITEMS = 5;
 
+// Alert component remains the same...
 const Alert = React.forwardRef(function Alert(props, ref) {
     return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
-
 Alert.propTypes = {
     severity: PropTypes.oneOf(['error', 'warning', 'info', 'success']),
     children: PropTypes.node,
@@ -50,21 +53,27 @@ Alert.defaultProps = {
     onClose: null,
 };
 
-
+// getApiServices remains the same...
 const getApiServices = (type) => {
-    if (type === 'author') return { update: updateAuthor, delete: deleteAuthor, fetchAll: getAllAuthors };
-    if (type === 'theme') return { update: updateTheme, delete: deleteTheme, fetchAll: getAllThemes };
-    if (type === 'color') return { update: updateColor, delete: deleteColor, fetchAll: getAllColors };
+    // ... (implementation unchanged)
+    if (type === 'author') {
+        return { update: updateAuthor, delete: deleteAuthor, fetchAll: getAllAuthors };
+    }
+    if (type === 'theme') {
+        return { update: updateTheme, delete: deleteTheme, fetchAll: getAllThemes };
+    }
+    if (type === 'color') {
+        return { update: updateColor, delete: deleteColor, fetchAll: getAllColors };
+    }
     return null;
 };
 
 function FilterableListSection({
                                    title,
                                    icon,
-                                   // fetchItems prop is kept for clarity but not directly used by loadItems
-                                   //fetchItems,
                                    onSelectItem,
-                                   selectedItemName,
+                                   // Receive selectedItemId instead of name
+                                   selectedItemId,
                                    filterType,
                                    onItemUpdatedOrDeleted,
                                }) {
@@ -83,8 +92,10 @@ function FilterableListSection({
 
     const api = useMemo(() => getApiServices(filterType), [filterType]);
 
+    // loadItems remains the same...
     const loadItems = useCallback(async () => {
-        if (!api || !api.fetchAll) {
+        // ... (implementation unchanged)
+        if (!api?.fetchAll) {
             const errorMessage = `API services or fetchAll not available for type: ${filterType}`;
             setError(errorMessage);
             setLoading(false);
@@ -96,12 +107,17 @@ function FilterableListSection({
             setLoading(true);
             setError(null);
             const data = await api.fetchAll();
-            setItems(data.map(item => ({ id: item.id, name: item.name })).sort((a, b) => a.name.localeCompare(b.name)));
+            const mappedItems = Array.isArray(data)
+                ? data.map(item => ({ id: item.id, name: String(item.name || '') }))
+                : [];
+            const sortedItems = mappedItems.toSorted((a, b) => a.name.localeCompare(b.name));
+            setItems(sortedItems);
         } catch (err) {
-            const errorMessage = `Failed to load ${title?.toLowerCase() || 'items'}`;
-            setError(errorMessage);
-            console.error(err);
-            setSnackbar({ open: true, message: `${errorMessage}: ${err.message}`, severity: 'error' });
+            const specificErrorMessage = err instanceof Error ? err.message : 'Unknown error';
+            const generalErrorMessage = `Failed to load ${title?.toLowerCase() || 'items'}`;
+            setError(generalErrorMessage);
+            console.error(`${generalErrorMessage}: ${specificErrorMessage}`, err);
+            setSnackbar({ open: true, message: `${generalErrorMessage}: ${specificErrorMessage}`, severity: 'error' });
         } finally {
             setLoading(false);
         }
@@ -133,6 +149,7 @@ function FilterableListSection({
         setEditValue('');
     };
 
+    // handleSaveEdit needs to pass the ID on update notification
     const handleSaveEdit = useCallback(async (e, itemId) => {
         if (e) e.stopPropagation();
         if (!isAdmin || !api?.update) return;
@@ -141,29 +158,32 @@ function FilterableListSection({
             return;
         }
         const originalItem = items.find(i => i.id === itemId);
-        if (originalItem && originalItem.name === editValue.trim()) {
+        if (originalItem?.name === editValue.trim()) {
             handleCancelEdit();
             return;
         }
 
         try {
             const updatedItem = await api.update(itemId, editValue.trim());
-            const oldName = originalItem?.name; // Capture old name before updating state
-            setItems(prevItems => prevItems.map(i => (i.id === itemId ? { ...i, name: updatedItem.name } : i))
-                .sort((a, b) => a.name.localeCompare(b.name)));
+            setItems(prevItems =>
+                prevItems
+                    .map(i => (i.id === itemId ? { ...i, name: updatedItem.name } : i))
+                    .toSorted((a, b) => a.name.localeCompare(b.name))
+            );
             setEditingItemId(null);
             setSnackbar({ open: true, message: `${filterType || 'Item'} "${updatedItem.name}" updated.`, severity: 'success' });
             if (onItemUpdatedOrDeleted) {
-                // Pass filterType, newName, 'update', and oldName
-                onItemUpdatedOrDeleted(filterType, updatedItem.name, 'update', oldName);
+                // Pass the ID for the updated item
+                onItemUpdatedOrDeleted(filterType, updatedItem.id, 'update', updatedItem.name);
             }
         } catch (err) {
+            const message = err instanceof Error ? err.message : 'An unknown error occurred';
             console.error(`Failed to update ${filterType}`, err);
-            setSnackbar({ open: true, message: `Failed to update: ${err.message}`, severity: 'error' });
+            setSnackbar({ open: true, message: `Failed to update: ${message}`, severity: 'error' });
         }
     }, [isAdmin, api, editValue, items, filterType, onItemUpdatedOrDeleted]);
 
-
+    // handleDelete needs to pass the ID on delete notification
     const handleDelete = async (e, item) => {
         e.stopPropagation();
         if (!isAdmin || !api?.delete) return;
@@ -173,12 +193,13 @@ function FilterableListSection({
                 setItems(prevItems => prevItems.filter(i => i.id !== item.id));
                 setSnackbar({ open: true, message: `${filterType || 'Item'} "${item.name}" deleted.`, severity: 'success' });
                 if (onItemUpdatedOrDeleted) {
-                    // Pass filterType, deleted item's name, and 'delete'
-                    onItemUpdatedOrDeleted(filterType, item.name, 'delete');
+                    // Pass the ID for the deleted item
+                    onItemUpdatedOrDeleted(filterType, item.id, 'delete');
                 }
             } catch (err) {
+                const message = err instanceof Error ? err.message : 'An unknown error occurred';
                 console.error(`Failed to delete ${filterType}`, err);
-                setSnackbar({ open: true, message: `Failed to delete: ${err.message}`, severity: 'error' });
+                setSnackbar({ open: true, message: `Failed to delete: ${message}`, severity: 'error' });
             }
         }
     };
@@ -192,7 +213,7 @@ function FilterableListSection({
 
     const handleCloseSnackbar = (event, reason) => {
         if (reason === 'clickaway') return;
-        setSnackbar(prev => ({ ...prev, open: false }));
+        setSnackbar(prev => ({ ...prev, open: false, message: '', severity: 'info' }));
     };
 
     const displayedItems = showAll ? items : items.slice(0, MAX_INITIAL_ITEMS);
@@ -208,13 +229,15 @@ function FilterableListSection({
             </ListItemButton>
             <Collapse in={open} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding sx={{ pl: 2 }}>
-                    {loading && <ListItemText primary={<CircularProgress size={20} sx={{ ml: 2, my: 1 }} />} />}
-                    {error && <ListItemText primary={<Typography color="error" sx={{ml:2}}>{error}</Typography>} />}
+                    {loading && ( <ListItemText primary={<CircularProgress size={20} sx={{ ml: 2, my: 1 }} />} /> )}
+                    {error && !loading && ( <ListItemText primary={<Typography color="error" sx={{ml:2}}>{error}</Typography>} /> )}
                     {!loading && !error && displayedItems.map((item) => (
                         <ListItemButton
                             key={item.id}
-                            selected={!editingItemId && selectedItemName === item.name && filterType === title?.toLowerCase().slice(0, -1)}
-                            onClick={editingItemId === item.id && isAdmin ? (e) => e.stopPropagation() : () => onSelectItem(filterType, item.name)}
+                            // Update selected logic to use ID
+                            selected={!editingItemId && selectedItemId === item.id}
+                            // Pass ID and Name to onSelectItem
+                            onClick={editingItemId === item.id && isAdmin ? (e) => e.stopPropagation() : () => onSelectItem(filterType, item.id, item.name)}
                             sx={{ pl: 4, py: 0.5, display: 'flex', alignItems: 'center' }}
                         >
                             {editingItemId === item.id && isAdmin ? (
@@ -262,14 +285,23 @@ function FilterableListSection({
                         <ListItemButton onClick={handleToggleShowAll} sx={{ pl: 4, py: 0.5 }}>
                             <ListItemText
                                 primary={showMoreText}
-                                sx={{ '& .MuiListItemText-primary': { variant: 'caption', color: 'primary.main' } }}
+                                sx={{ '& .MuiListItemText-primary': { typography: 'caption', color: 'primary.main' } }}
                             />
                         </ListItemButton>
                     )}
-                    {!loading && !error && items.length === 0 && <ListItemText primary={<Typography sx={{ pl: 4, fontStyle: 'italic' }}>None found</Typography>} />}
+                    {!loading && !error && items.length === 0 && (
+                        <ListItemText
+                            primary={<Typography sx={{ pl: 4, fontStyle: 'italic' }}>None found</Typography>}
+                        />
+                    )}
                 </List>
             </Collapse>
-            <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
                 <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
                     {snackbar.message}
                 </Alert>
@@ -281,30 +313,27 @@ function FilterableListSection({
 FilterableListSection.propTypes = {
     title: PropTypes.string.isRequired,
     icon: PropTypes.element.isRequired,
-    fetchItems: PropTypes.func.isRequired, // Kept for prop validation, though not directly used by loadItems
     onSelectItem: PropTypes.func.isRequired,
-    selectedItemName: PropTypes.string,
+    // Update prop name and type
+    selectedItemId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     filterType: PropTypes.string.isRequired,
     onItemUpdatedOrDeleted: PropTypes.func.isRequired,
 };
 
 FilterableListSection.defaultProps = {
-    selectedItemName: null,
+    // Update default prop
+    selectedItemId: null,
 };
 
 function FilterSidebar({ onFilterChange, activeFilter, onItemUpdatedOrDeletedInApp }) {
-    const allBuildsSelected = !activeFilter || (!activeFilter.type && !activeFilter.name);
+    // Check if filter is active based on ID
+    const allBuildsSelected = !activeFilter?.type && activeFilter?.id == null;
 
-    // This wrapper ensures the correct arguments are passed to onItemUpdatedOrDeletedInApp
-    const handleItemUpdateOrDeleteWrapper = (itemType, nameOrId, actionType, oldNameIfUpdated) => {
+    // Update wrapper to pass ID
+    const handleItemUpdateOrDeleteWrapper = (itemType, itemId, actionType, nameIfUpdated) => {
         if (onItemUpdatedOrDeletedInApp) {
-            if (actionType === 'update') {
-                // For updates, App.jsx might need the old name to clear filters,
-                // and the new name (which is `nameOrId` in this case from FilterableListSection)
-                onItemUpdatedOrDeletedInApp(itemType, oldNameIfUpdated, actionType, nameOrId);
-            } else { // 'delete'
-                onItemUpdatedOrDeletedInApp(itemType, nameOrId, actionType);
-            }
+            // Pass itemId instead of name/oldName for consistency
+            onItemUpdatedOrDeletedInApp(itemType, itemId, actionType, nameIfUpdated);
         }
     };
 
@@ -328,17 +357,42 @@ function FilterSidebar({ onFilterChange, activeFilter, onItemUpdatedOrDeletedInA
                     <Typography variant="h6" fontWeight="medium">Filter Builds</Typography>
                 </Box>
                 <Divider />
-                <ListItemButton onClick={() => onFilterChange(null, null)} selected={allBuildsSelected} sx={{ py: 1.5 }}>
+                {/* Update onClick to pass nulls for clearing filter */}
+                <ListItemButton onClick={() => onFilterChange(null, null, null)} selected={allBuildsSelected} sx={{ py: 1.5 }}>
                     <ListItemIcon sx={{ minWidth: 40 }}><HomeIcon /></ListItemIcon>
                     <ListItemText primary={<Typography variant="subtitle1" fontWeight="medium">All Builds</Typography>} />
                 </ListItemButton>
                 <Divider />
 
-                <FilterableListSection title="Authors" icon={<PeopleIcon />} fetchItems={getAllAuthors} onSelectItem={onFilterChange} selectedItemName={activeFilter?.type === 'author' ? activeFilter.name : null} filterType="author" onItemUpdatedOrDeleted={handleItemUpdateOrDeleteWrapper} />
+                <FilterableListSection
+                    title="Authors"
+                    icon={<PeopleIcon />}
+                    onSelectItem={onFilterChange}
+                    // Pass ID for selection check
+                    selectedItemId={activeFilter?.type === 'author' ? activeFilter.id : null}
+                    filterType="author"
+                    onItemUpdatedOrDeleted={handleItemUpdateOrDeleteWrapper}
+                />
                 <Divider />
-                <FilterableListSection title="Themes" icon={<CategoryIcon />} fetchItems={getAllThemes} onSelectItem={onFilterChange} selectedItemName={activeFilter?.type === 'theme' ? activeFilter.name : null} filterType="theme" onItemUpdatedOrDeleted={handleItemUpdateOrDeleteWrapper} />
+                <FilterableListSection
+                    title="Themes"
+                    icon={<CategoryIcon />}
+                    onSelectItem={onFilterChange}
+                    // Pass ID for selection check
+                    selectedItemId={activeFilter?.type === 'theme' ? activeFilter.id : null}
+                    filterType="theme"
+                    onItemUpdatedOrDeleted={handleItemUpdateOrDeleteWrapper}
+                />
                 <Divider />
-                <FilterableListSection title="Colors" icon={<PaletteIcon />} fetchItems={getAllColors} onSelectItem={onFilterChange} selectedItemName={activeFilter?.type === 'color' ? activeFilter.name : null} filterType="color" onItemUpdatedOrDeleted={handleItemUpdateOrDeleteWrapper} />
+                <FilterableListSection
+                    title="Colors"
+                    icon={<PaletteIcon />}
+                    onSelectItem={onFilterChange}
+                    // Pass ID for selection check
+                    selectedItemId={activeFilter?.type === 'color' ? activeFilter.id : null}
+                    filterType="color"
+                    onItemUpdatedOrDeleted={handleItemUpdateOrDeleteWrapper}
+                />
             </List>
         </Box>
     );
@@ -346,15 +400,18 @@ function FilterSidebar({ onFilterChange, activeFilter, onItemUpdatedOrDeletedInA
 
 FilterSidebar.propTypes = {
     onFilterChange: PropTypes.func.isRequired,
+    // Update PropTypes for activeFilter
     activeFilter: PropTypes.shape({
         type: PropTypes.string,
-        name: PropTypes.string,
+        id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        name: PropTypes.string, // Keep name for display
     }),
     onItemUpdatedOrDeletedInApp: PropTypes.func.isRequired,
 };
 
 FilterSidebar.defaultProps = {
-    activeFilter: null,
+    // Update default prop
+    activeFilter: { type: null, id: null, name: null },
 };
 
 export default FilterSidebar;
