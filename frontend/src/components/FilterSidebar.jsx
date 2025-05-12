@@ -1,6 +1,6 @@
 // File: frontend/src/components/FilterSidebar.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import PropTypes from 'prop-types'; // Import PropTypes
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import PropTypes from 'prop-types';
 import { getAllAuthors, updateAuthor, deleteAuthor } from '../api/authorService';
 import { getAllThemes, updateTheme, deleteTheme } from '../api/themeService';
 import { getAllColors, updateColor, deleteColor } from '../api/colorService';
@@ -38,12 +38,16 @@ const MAX_INITIAL_ITEMS = 5;
 const Alert = React.forwardRef(function Alert(props, ref) {
     return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
-// Ensure Alert has propTypes if it's a local component, or if MuiAlert is re-wrapped.
-// For MuiAlert itself, it has its own prop types.
+
 Alert.propTypes = {
-    severity: PropTypes.string, // More specific: PropTypes.oneOf(['error', 'warning', 'info', 'success'])
+    severity: PropTypes.oneOf(['error', 'warning', 'info', 'success']),
     children: PropTypes.node,
     onClose: PropTypes.func,
+};
+Alert.defaultProps = {
+    severity: 'info',
+    children: null,
+    onClose: null,
 };
 
 
@@ -51,13 +55,14 @@ const getApiServices = (type) => {
     if (type === 'author') return { update: updateAuthor, delete: deleteAuthor, fetchAll: getAllAuthors };
     if (type === 'theme') return { update: updateTheme, delete: deleteTheme, fetchAll: getAllThemes };
     if (type === 'color') return { update: updateColor, delete: deleteColor, fetchAll: getAllColors };
-    return null; // Should ideally not happen if filterType is always valid
+    return null;
 };
 
 function FilterableListSection({
                                    title,
                                    icon,
-                                   fetchItems,
+                                   // fetchItems prop is kept for clarity but not directly used by loadItems
+                                   //fetchItems,
                                    onSelectItem,
                                    selectedItemName,
                                    filterType,
@@ -66,27 +71,31 @@ function FilterableListSection({
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null); // String or null
+    const [error, setError] = useState(null);
     const [showAll, setShowAll] = useState(false);
-    const [editingItemId, setEditingItemId] = useState(null); // ID type or null
+    const [editingItemId, setEditingItemId] = useState(null);
     const [editValue, setEditValue] = useState('');
     const editInputRef = useRef(null);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
 
     const { hasRole } = useAuth();
     const isAdmin = hasRole('ROLE_ADMIN');
-    const api = getApiServices(filterType);
+
+    const api = useMemo(() => getApiServices(filterType), [filterType]);
 
     const loadItems = useCallback(async () => {
-        if (!api) { // Guard against api being null if filterType is invalid
-            setError(`Invalid filter type: ${filterType}`);
+        if (!api || !api.fetchAll) {
+            const errorMessage = `API services or fetchAll not available for type: ${filterType}`;
+            setError(errorMessage);
             setLoading(false);
+            console.error(errorMessage);
+            setSnackbar({ open: true, message: errorMessage, severity: 'error' });
             return;
         }
         try {
             setLoading(true);
             setError(null);
-            const data = await fetchItems(); // fetchItems is from props
+            const data = await api.fetchAll();
             setItems(data.map(item => ({ id: item.id, name: item.name })).sort((a, b) => a.name.localeCompare(b.name)));
         } catch (err) {
             const errorMessage = `Failed to load ${title?.toLowerCase() || 'items'}`;
@@ -96,16 +105,15 @@ function FilterableListSection({
         } finally {
             setLoading(false);
         }
-    }, [fetchItems, title, filterType, api]); // Added api and filterType to dependencies
+    }, [api, title, filterType]);
 
     useEffect(() => {
-        void loadItems(); // Explicitly ignore promise for ESLint if not handled
+        void loadItems();
     }, [loadItems]);
 
     useEffect(() => {
         if (editingItemId && editInputRef.current && isAdmin) {
             editInputRef.current.focus();
-            // editInputRef.current.select(); // Select can be annoying, optional
         }
     }, [editingItemId, isAdmin]);
 
@@ -127,26 +135,27 @@ function FilterableListSection({
 
     const handleSaveEdit = useCallback(async (e, itemId) => {
         if (e) e.stopPropagation();
-        if (!isAdmin || !api) return;
+        if (!isAdmin || !api?.update) return;
         if (!editValue.trim()) {
             setSnackbar({ open: true, message: 'Name cannot be empty.', severity: 'warning' });
             return;
         }
         const originalItem = items.find(i => i.id === itemId);
         if (originalItem && originalItem.name === editValue.trim()) {
-            handleCancelEdit(); // No e needed here
+            handleCancelEdit();
             return;
         }
 
         try {
             const updatedItem = await api.update(itemId, editValue.trim());
-            const oldName = originalItem?.name;
+            const oldName = originalItem?.name; // Capture old name before updating state
             setItems(prevItems => prevItems.map(i => (i.id === itemId ? { ...i, name: updatedItem.name } : i))
                 .sort((a, b) => a.name.localeCompare(b.name)));
             setEditingItemId(null);
             setSnackbar({ open: true, message: `${filterType || 'Item'} "${updatedItem.name}" updated.`, severity: 'success' });
             if (onItemUpdatedOrDeleted) {
-                onItemUpdatedOrDeleted(filterType, itemId, updatedItem.name, 'update', oldName);
+                // Pass filterType, newName, 'update', and oldName
+                onItemUpdatedOrDeleted(filterType, updatedItem.name, 'update', oldName);
             }
         } catch (err) {
             console.error(`Failed to update ${filterType}`, err);
@@ -157,13 +166,16 @@ function FilterableListSection({
 
     const handleDelete = async (e, item) => {
         e.stopPropagation();
-        if (!isAdmin || !api) return;
+        if (!isAdmin || !api?.delete) return;
         if (window.confirm(`Are you sure you want to delete ${filterType || 'item'} "${item.name}"? This might affect existing builds.`)) {
             try {
                 await api.delete(item.id);
                 setItems(prevItems => prevItems.filter(i => i.id !== item.id));
                 setSnackbar({ open: true, message: `${filterType || 'Item'} "${item.name}" deleted.`, severity: 'success' });
-                if (onItemUpdatedOrDeleted) onItemUpdatedOrDeleted(filterType, item.id, item.name, 'delete');
+                if (onItemUpdatedOrDeleted) {
+                    // Pass filterType, deleted item's name, and 'delete'
+                    onItemUpdatedOrDeleted(filterType, item.name, 'delete');
+                }
             } catch (err) {
                 console.error(`Failed to delete ${filterType}`, err);
                 setSnackbar({ open: true, message: `Failed to delete: ${err.message}`, severity: 'error' });
@@ -174,7 +186,7 @@ function FilterableListSection({
     const handleEditInputChange = (e) => setEditValue(e.target.value);
 
     const handleEditInputKeyDown = (e, itemId) => {
-        if (e.key === 'Enter') void handleSaveEdit(null, itemId); // void to indicate promise intentionally not awaited
+        if (e.key === 'Enter') void handleSaveEdit(null, itemId);
         else if (e.key === 'Escape') handleCancelEdit(null);
     };
 
@@ -212,7 +224,7 @@ function FilterableListSection({
                                         value={editValue}
                                         onChange={handleEditInputChange}
                                         onKeyDown={(e) => handleEditInputKeyDown(e, item.id)}
-                                        onBlur={() => { void handleSaveEdit(null, item.id); }} // void for promise
+                                        onBlur={() => { void handleSaveEdit(null, item.id); }}
                                         variant="standard"
                                         size="small"
                                         fullWidth
@@ -268,10 +280,10 @@ function FilterableListSection({
 
 FilterableListSection.propTypes = {
     title: PropTypes.string.isRequired,
-    icon: PropTypes.element.isRequired, // Icon is a React element
-    fetchItems: PropTypes.func.isRequired,
+    icon: PropTypes.element.isRequired,
+    fetchItems: PropTypes.func.isRequired, // Kept for prop validation, though not directly used by loadItems
     onSelectItem: PropTypes.func.isRequired,
-    selectedItemName: PropTypes.string, // Can be null or string
+    selectedItemName: PropTypes.string,
     filterType: PropTypes.string.isRequired,
     onItemUpdatedOrDeleted: PropTypes.func.isRequired,
 };
@@ -282,6 +294,20 @@ FilterableListSection.defaultProps = {
 
 function FilterSidebar({ onFilterChange, activeFilter, onItemUpdatedOrDeletedInApp }) {
     const allBuildsSelected = !activeFilter || (!activeFilter.type && !activeFilter.name);
+
+    // This wrapper ensures the correct arguments are passed to onItemUpdatedOrDeletedInApp
+    const handleItemUpdateOrDeleteWrapper = (itemType, nameOrId, actionType, oldNameIfUpdated) => {
+        if (onItemUpdatedOrDeletedInApp) {
+            if (actionType === 'update') {
+                // For updates, App.jsx might need the old name to clear filters,
+                // and the new name (which is `nameOrId` in this case from FilterableListSection)
+                onItemUpdatedOrDeletedInApp(itemType, oldNameIfUpdated, actionType, nameOrId);
+            } else { // 'delete'
+                onItemUpdatedOrDeletedInApp(itemType, nameOrId, actionType);
+            }
+        }
+    };
+
     return (
         <Box
             sx={{
@@ -308,11 +334,11 @@ function FilterSidebar({ onFilterChange, activeFilter, onItemUpdatedOrDeletedInA
                 </ListItemButton>
                 <Divider />
 
-                <FilterableListSection title="Authors" icon={<PeopleIcon />} fetchItems={getAllAuthors} onSelectItem={onFilterChange} selectedItemName={activeFilter?.type === 'author' ? activeFilter.name : null} filterType="author" onItemUpdatedOrDeleted={onItemUpdatedOrDeletedInApp} />
+                <FilterableListSection title="Authors" icon={<PeopleIcon />} fetchItems={getAllAuthors} onSelectItem={onFilterChange} selectedItemName={activeFilter?.type === 'author' ? activeFilter.name : null} filterType="author" onItemUpdatedOrDeleted={handleItemUpdateOrDeleteWrapper} />
                 <Divider />
-                <FilterableListSection title="Themes" icon={<CategoryIcon />} fetchItems={getAllThemes} onSelectItem={onFilterChange} selectedItemName={activeFilter?.type === 'theme' ? activeFilter.name : null} filterType="theme" onItemUpdatedOrDeleted={onItemUpdatedOrDeletedInApp} />
+                <FilterableListSection title="Themes" icon={<CategoryIcon />} fetchItems={getAllThemes} onSelectItem={onFilterChange} selectedItemName={activeFilter?.type === 'theme' ? activeFilter.name : null} filterType="theme" onItemUpdatedOrDeleted={handleItemUpdateOrDeleteWrapper} />
                 <Divider />
-                <FilterableListSection title="Colors" icon={<PaletteIcon />} fetchItems={getAllColors} onSelectItem={onFilterChange} selectedItemName={activeFilter?.type === 'color' ? activeFilter.name : null} filterType="color" onItemUpdatedOrDeleted={onItemUpdatedOrDeletedInApp} />
+                <FilterableListSection title="Colors" icon={<PaletteIcon />} fetchItems={getAllColors} onSelectItem={onFilterChange} selectedItemName={activeFilter?.type === 'color' ? activeFilter.name : null} filterType="color" onItemUpdatedOrDeleted={handleItemUpdateOrDeleteWrapper} />
             </List>
         </Box>
     );
@@ -321,14 +347,14 @@ function FilterSidebar({ onFilterChange, activeFilter, onItemUpdatedOrDeletedInA
 FilterSidebar.propTypes = {
     onFilterChange: PropTypes.func.isRequired,
     activeFilter: PropTypes.shape({
-        type: PropTypes.string, // Can be null
-        name: PropTypes.string, // Can be null
-    }), // activeFilter itself can be null or an object
+        type: PropTypes.string,
+        name: PropTypes.string,
+    }),
     onItemUpdatedOrDeletedInApp: PropTypes.func.isRequired,
 };
 
 FilterSidebar.defaultProps = {
-    activeFilter: null, // Default activeFilter to null
+    activeFilter: null,
 };
 
 export default FilterSidebar;

@@ -1,0 +1,57 @@
+# File: MCBuildLibrary/docker-compose.yml
+# version: '3.8' # This line can be removed
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: mcbuildlibrary-db
+    environment:
+      POSTGRES_DB: mcbuildlibrary
+      POSTGRES_USER: ${DB_USERNAME:-dbuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dbpassword}
+    volumes:
+      - mcbuildlibrary_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432" # Changed host port to 5433 to avoid conflict if local Postgres runs on 5432
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-dbuser} -d mcbuildlibrary"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      args:
+        # Corrected JAR file name to match case
+        JAR_FILE: target/MCBuildLibrary-0.0.1-SNAPSHOT.jar
+    container_name: mcbuildlibrary-backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/mcbuildlibrary # Service name 'db' for hostname
+      DB_USERNAME: ${DB_USERNAME:-dbuser}
+      DB_PASSWORD: ${DB_PASSWORD:-dbpassword}
+      APP_DEFAULT_ADMIN_USERNAME: ${APP_DEFAULT_ADMIN_USERNAME:-admin}
+      APP_DEFAULT_ADMIN_PASSWORD: ${APP_DEFAULT_ADMIN_PASSWORD:-Chang3M3N0w!}
+      # SPRING_PROFILES_ACTIVE: dev # Uncomment if you need specific profiles
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: mcbuildlibrary-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80" # Host port 3000 maps to container port 80 (Nginx)
+    restart: unless-stopped
+
+volumes:
+  mcbuildlibrary_data:

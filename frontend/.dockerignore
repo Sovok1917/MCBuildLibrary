@@ -1,0 +1,7 @@
+# File: MCBuildLibrary/frontend/.dockerignore
+node_modules
+dist
+build
+.vite
+# Any other local dev files not needed for the build inside the container
+# e.g., .env.local if you use it and don't want it in the image

@@ -87,7 +87,6 @@
 
             </plugin>
 
-            <!-- Add this inside the <plugins> section of your pom.xml -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -97,12 +96,10 @@
                         <goals>
                             <goal>prepare-agent</goal>
                         </goals>
-                        <!-- Phase defaults to initialize, which is usually fine -->
                     </execution>
                     <execution>
                         <id>report</id>
                         <phase>verify</phase> <!-- Generate report after tests run (verify phase runs after test) -->
-                        <!-- Or use <phase>test</phase> if you only run 'mvn test' -->
                         <goals>
                             <goal>report</goal>
                         </goals>

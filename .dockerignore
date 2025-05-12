@@ -1,0 +1,15 @@
+# File: MCBuildLibrary/.dockerignore
+.git
+.idea/
+*.iml
+logs/
+
+# Exclude frontend build artifacts and node_modules from the root context
+# as Dockerfile.frontend handles its own build process internally.
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+# Any other large files or directories not needed for building backend or frontend images
+# htmlReport/

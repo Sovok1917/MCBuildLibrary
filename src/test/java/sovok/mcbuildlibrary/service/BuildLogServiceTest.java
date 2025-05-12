@@ -72,7 +72,7 @@ import sovok.mcbuildlibrary.model.Theme;
 @ExtendWith(MockitoExtension.class)
 class BuildLogServiceTest {
 
-    private static final long VERIFY_TIMEOUT_MS = 5000; // Timeout for async verification
+    private static final long VERIFY_TIMEOUT_MS = 0; // Timeout for async verification
     private static final String LOG_TASK_PREFIX = StringConstants.LOG_TASK_CACHE_PREFIX;
 
     @Mock
