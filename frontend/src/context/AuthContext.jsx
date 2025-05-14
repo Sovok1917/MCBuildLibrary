@@ -1,10 +1,16 @@
 // File: frontend/src/context/AuthContext.jsx
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { login as apiLogin, logout as apiLogout, getCurrentUser } from '../api/authService'; // Ensure authService path is correct
+// noinspection JSUnusedGlobalSymbols
+
+import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
+import PropTypes from 'prop-types'; // Import PropTypes
+import {
+    login as apiLogin,
+    logout as apiLogout,
+    getCurrentUser as apiGetCurrentUser
+} from '../api/authService';
 
 const AuthContext = createContext(null);
 
-// Make sure this line is exactly: export const useAuth = ...
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -17,39 +23,39 @@ export const AuthProvider = ({ children }) => {
             setIsLoadingAuth(true);
             setAuthError(null);
             try {
-                const user = await getCurrentUser();
-                if (user) {
-                    setCurrentUser(user);
-                } else {
-                    setCurrentUser(null);
-                }
+                const user = await apiGetCurrentUser();
+                setCurrentUser(user);
             } catch (error) {
+                console.error("Error during initial user check:", error);
                 setCurrentUser(null);
             } finally {
                 setIsLoadingAuth(false);
             }
         };
         checkLoggedInStatus();
-    }, []);
+    }, []); // Empty dependency array means this runs once on mount
 
-    const login = async (username, password) => {
+    // Memoize login, logout, and setAuthError functions to stabilize the context value
+    const login = useCallback(async (username, password) => {
         setIsLoadingAuth(true);
         setAuthError(null);
         try {
-            const user = await apiLogin(username, password);
-            setCurrentUser(user);
-            return user;
+            await apiLogin(username, password); // Perform login
+            // Fetch fresh user details after successful login to update context
+            const freshUser = await apiGetCurrentUser();
+            setCurrentUser(freshUser);
+            setIsLoadingAuth(false);
+            return freshUser;
         } catch (error) {
-            console.error("Login failed in AuthContext:", error);
+            console.error("Login failed in AuthContext:", error.message);
             setCurrentUser(null);
             setAuthError(error.message || 'Login failed. Please check your credentials.');
-            throw error;
-        } finally {
             setIsLoadingAuth(false);
+            throw error;
         }
-    };
+    }, []); // No dependencies that would change this function's identity often
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         setIsLoadingAuth(true);
         setAuthError(null);
         try {
@@ -58,32 +64,53 @@ export const AuthProvider = ({ children }) => {
             console.error("Logout API call failed in AuthContext:", error);
         } finally {
             setCurrentUser(null);
+            try {
+                // Refresh to get unauthenticated XSRF token for next potential login
+                await apiGetCurrentUser();
+            } catch (e) {
+                console.error("Error calling getCurrentUser after logout:", e);
+            }
             setIsLoadingAuth(false);
         }
-    };
+    }, []); // No dependencies that would change this function's identity often
 
-    const value = {
+    // setAuthError is a state setter, already stable, but include if ESLint complains
+    const stableSetAuthError = useCallback((error) => {
+        setAuthError(error);
+    }, []);
+
+
+    const value = useMemo(() => ({
         currentUser,
         isLoadingAuth,
         authError,
-        setAuthError,
-        login,
-        logout,
+        setAuthError: stableSetAuthError, // Use the memoized version
+        login, // Already memoized with useCallback
+        logout, // Already memoized with useCallback
         isAuthenticated: !!currentUser,
         hasRole: (role) => {
             if (!currentUser || (!currentUser.roles && !currentUser.authorities)) {
                 return false;
             }
+            // Ensure rolesToCheck is always an array
             const rolesToCheck = currentUser.authorities ?
-                currentUser.authorities.map(auth => typeof auth === 'string' ? auth : auth.authority) :
-                currentUser.roles;
-            return rolesToCheck?.some(r => r === role);
+                currentUser.authorities.map(auth =>
+                    (typeof auth === 'string' ? auth : auth?.authority)
+                ) :
+                (currentUser.roles || []); // Fallback to empty array if roles also undefined
+            return rolesToCheck.some(r => r === role);
         }
-    };
+    }), [currentUser, isLoadingAuth, authError, login, logout, stableSetAuthError]);
+    // Dependencies for useMemo: only recompute if these values change.
 
     return (
         <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );
+};
+
+// Add PropTypes validation for AuthProvider
+AuthProvider.propTypes = {
+    children: PropTypes.node.isRequired,
 };

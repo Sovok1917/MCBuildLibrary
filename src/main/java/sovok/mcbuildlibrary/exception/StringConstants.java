@@ -100,7 +100,7 @@ public final class StringConstants {
 
 
 
-    public static final String API_BASE_PATH = "";
+    public static final String API_BASE_PATH = "/api";
     public static final String AUTHORS_ENDPOINT = API_BASE_PATH + "/authors";
     public static final String BUILDS_ENDPOINT = API_BASE_PATH + "/builds";
     public static final String COLORS_ENDPOINT = API_BASE_PATH + "/colors";

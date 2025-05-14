@@ -2,11 +2,25 @@
 const API_BASE_URL = '/api/themes';
 
 /**
- * Fetches all themes from the backend.
+ * Helper function to get a cookie by name.
+ * @param {string} name The name of the cookie.
+ * @returns {string|null} The cookie value or null if not found.
+ */
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        const cookieValue = parts.pop().split(';').shift();
+        return cookieValue ? decodeURIComponent(cookieValue) : null;
+    }
+    return null;
+}
+
+/**
+ * Fetches all themes from the backend. (GET request - no CSRF token needed)
  * @returns {Promise<Array<Object>>} A promise that resolves to an array of theme DTOs.
  */
 export const getAllThemes = async () => {
-    // ... (implementation from previous step)
     const response = await fetch(API_BASE_URL);
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Network response was not ok' }));
@@ -22,8 +36,17 @@ export const getAllThemes = async () => {
  * @returns {Promise<Object>} A promise that resolves to the updated theme object.
  */
 export const updateTheme = async (id, newName) => {
+    const csrfToken = getCookie('XSRF-TOKEN');
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+    if (csrfToken) {
+        headers['X-XSRF-TOKEN'] = csrfToken;
+    }
+
     const response = await fetch(`${API_BASE_URL}/${id}?name=${encodeURIComponent(newName)}`, {
         method: 'PUT',
+        headers: headers,
     });
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Network response was not ok' }));
@@ -38,8 +61,15 @@ export const updateTheme = async (id, newName) => {
  * @returns {Promise<void>} A promise that resolves when the theme is deleted.
  */
 export const deleteTheme = async (id) => {
+    const csrfToken = getCookie('XSRF-TOKEN');
+    const headers = {};
+    if (csrfToken) {
+        headers['X-XSRF-TOKEN'] = csrfToken;
+    }
+
     const response = await fetch(`${API_BASE_URL}/${id}`, {
         method: 'DELETE',
+        headers: headers,
     });
     if (!response.ok && response.status !== 204) {
         const errorData = await response.json().catch(() => ({ message: 'Network response was not ok' }));

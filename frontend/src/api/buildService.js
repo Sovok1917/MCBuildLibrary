@@ -3,27 +3,36 @@
 const API_BASE_URL = '/api/builds';
 
 /**
- * Fetches builds based on filter criteria.
+ * Helper function to get a cookie by name.
+ * @param {string} name The name of the cookie.
+ * @returns {string|null} The cookie value or null if not found.
+ */
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        const cookieValue = parts.pop().split(';').shift();
+        return cookieValue ? decodeURIComponent(cookieValue) : null;
+    }
+    return null;
+}
+
+/**
+ * Fetches builds based on filter criteria. (GET request - no CSRF token needed)
  * @param {Object} filters - An object containing filter criteria.
- * @param {string} [filters.name] - Build name to filter by (fuzzy match).
- * @param {string} [filters.author] - Author name to filter by (fuzzy match).
- * @param {string} [filters.theme] - Theme name to filter by (fuzzy match).
- * @param {string} [filters.color] - Color name to filter by (fuzzy match).
  * @returns {Promise<Array<Object>>} A promise that resolves to an array of filtered build objects.
  */
 export const getFilteredBuilds = async ({ name, author, theme, color }) => {
     const queryParams = new URLSearchParams();
-    // Add the name parameter if it exists
     if (name) queryParams.append('name', name);
     if (author) queryParams.append('author', author);
     if (theme) queryParams.append('theme', theme);
     if (color) queryParams.append('color', color);
 
     const queryString = queryParams.toString();
-    // If queryString is empty, fetch all builds from the base URL
     const url = queryString ? `${API_BASE_URL}/query?${queryString}` : API_BASE_URL;
 
-    console.log(`Fetching builds from URL: ${url}`); // Added for debugging
+    console.log(`Fetching builds from URL: ${url}`);
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -41,9 +50,15 @@ export const getFilteredBuilds = async ({ name, author, theme, color }) => {
  * @returns {Promise<Object>} A promise that resolves to the created build object.
  */
 export const createBuild = async (buildData) => {
-    // ... (implementation remains the same)
+    const csrfToken = getCookie('XSRF-TOKEN');
+    const headers = {}; // For FormData, Content-Type is set by the browser
+    if (csrfToken) {
+        headers['X-XSRF-TOKEN'] = csrfToken;
+    }
+
     const response = await fetch(API_BASE_URL, {
         method: 'POST',
+        headers: headers,
         body: buildData,
     });
     if (!response.ok) {
@@ -64,9 +79,15 @@ export const createBuild = async (buildData) => {
  * @returns {Promise<Object>} A promise that resolves to the updated build object.
  */
 export const updateBuild = async (identifier, buildData) => {
-    // ... (implementation remains the same)
+    const csrfToken = getCookie('XSRF-TOKEN');
+    const headers = {}; // For FormData, Content-Type is set by the browser
+    if (csrfToken) {
+        headers['X-XSRF-TOKEN'] = csrfToken;
+    }
+
     const response = await fetch(`${API_BASE_URL}/${identifier}`, {
         method: 'PUT',
+        headers: headers,
         body: buildData,
     });
     if (!response.ok) {
@@ -86,9 +107,15 @@ export const updateBuild = async (identifier, buildData) => {
  * @returns {Promise<void>} A promise that resolves when the build is deleted.
  */
 export const deleteBuild = async (identifier) => {
-    // ... (implementation remains the same)
+    const csrfToken = getCookie('XSRF-TOKEN');
+    const headers = {};
+    if (csrfToken) {
+        headers['X-XSRF-TOKEN'] = csrfToken;
+    }
+
     const response = await fetch(`${API_BASE_URL}/${identifier}`, {
         method: 'DELETE',
+        headers: headers,
     });
     if (!response.ok) {
         let errorMessage = `Failed to delete build ${identifier}`;
@@ -101,19 +128,18 @@ export const deleteBuild = async (identifier) => {
 };
 
 /**
- * Fetches builds related to a specific entity ID.
+ * Fetches builds related to a specific entity ID. (GET request - no CSRF token needed)
  * @param {string} type - The type of the entity ('author', 'theme', 'color').
  * @param {number|string} id - The ID of the entity.
  * @returns {Promise<Array<Object>>} A promise that resolves to an array of related build objects.
  */
 export const getBuildsByRelatedEntity = async (type, id) => {
-    // ... (implementation remains the same)
-    if (!type || id == null) { // Check for null or undefined id
+    if (!type || id == null) {
         throw new Error('Entity type and ID are required for related build search.');
     }
     const queryParams = new URLSearchParams();
     queryParams.append('type', type);
-    queryParams.append('id', id.toString()); // Ensure ID is a string for URLSearchParams
+    queryParams.append('id', id.toString());
 
     const url = `${API_BASE_URL}/related?${queryParams.toString()}`;
 

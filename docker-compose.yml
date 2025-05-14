@@ -13,13 +13,13 @@ services:
       - "8080:8080"
     environment:
       # Use the IP address of your docker0 interface
-      - DB_URL=jdbc:postgresql://172.17.0.1:5432/mcbuildlibrary
+      - DB_URL=jdbc:postgresql://host.docker.internal:5432/mcbuildlibrary
       - DB_USERNAME=mcbuilduser
       - DB_PASSWORD=securepassword
       - APP_DEFAULT_ADMIN_USERNAME=admin
       - APP_DEFAULT_ADMIN_PASSWORD=password
-    # extra_hosts: # You can remove or comment this out if using the direct IP
-    #   - "host.docker.internal:host-gateway"
+    extra_hosts: # You can remove or comment this out if using the direct IP
+       - "host.docker.internal:host-gateway"
     networks:
       - mcbuildapp-network
 

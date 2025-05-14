@@ -1,7 +1,7 @@
 // File: frontend/src/components/Login.jsx
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext.jsx'; // Ensure .jsx if you renamed
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom'; // <-- Import RouterLink
 
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -10,7 +10,9 @@ import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Paper from '@mui/material/Paper';
-import Container from '@mui/material/Container'; // <-- ADD THIS IMPORT
+import Container from '@mui/material/Container';
+import Link from '@mui/material/Link'; // <-- Import Material UI Link
+import Grid from '@mui/material/Grid'; // <-- Import Grid
 
 function Login() {
     const [username, setUsername] = useState('');
@@ -20,10 +22,8 @@ function Login() {
     const location = useLocation();
 
     useEffect(() => {
-        // Clear auth error when component mounts or location changes (e.g., navigating to login)
-        // to prevent showing stale errors from other attempts.
         setAuthError(null);
-    }, [setAuthError, location.pathname]); // Depend on location.pathname to reset on navigation to /login
+    }, [setAuthError, location.pathname]);
 
 
     const handleSubmit = async (event) => {
@@ -34,7 +34,6 @@ function Login() {
             const from = location.state?.from?.pathname || "/";
             navigate(from, { replace: true });
         } catch (error) {
-            // error is set in AuthContext, no need to set it here again
             console.error('Login component submission error:', error.message);
         }
     };
@@ -88,6 +87,14 @@ function Login() {
                     >
                         {isLoadingAuth ? 'Signing In...' : 'Sign In'}
                     </Button>
+                    {/* Add Link to Register Page */}
+                    <Grid container justifyContent="flex-end">
+                        <Grid item>
+                            <Link component={RouterLink} to="/register" variant="body2">
+                                {"Don't have an account? Register"}
+                            </Link>
+                        </Grid>
+                    </Grid>
                 </Box>
             </Paper>
         </Container>

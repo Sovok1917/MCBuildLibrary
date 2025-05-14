@@ -11,10 +11,11 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import sovok.mcbuildlibrary.model.Role;
 import sovok.mcbuildlibrary.service.UserDetailsServiceImpl;
 
@@ -22,10 +23,11 @@ import sovok.mcbuildlibrary.service.UserDetailsServiceImpl;
  * Configures web security for the application.
  * Enables method-level security and defines HTTP security rules,
  * including custom success and logout handlers for SPA compatibility.
+ * CSRF protection is enabled using CookieCsrfTokenRepository.
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // prePostEnabled = true is the default
+@EnableMethodSecurity
 public class SecurityConfig {
     
     private final UserDetailsServiceImpl userDetailsService;
@@ -80,6 +82,7 @@ public class SecurityConfig {
     /**
      * Configures the security filter chain for HTTP requests.
      * Defines authorization rules for various API endpoints.
+     * CSRF protection is enabled using CookieCsrfTokenRepository.
      *
      * @param http The {@link HttpSecurity} to configure.
      * @return The configured {@link SecurityFilterChain}.
@@ -87,15 +90,23 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+        requestHandler.setCsrfRequestAttributeName(null); // Use default _csrf attribute name
+        
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(authorizeRequests -> authorizeRequests // Renamed 'authz'
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(requestHandler)
+                )
+                .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                         .requestMatchers("/", "/index.html", "/static/**",
                                 "/vite.svg", "/assets/**")
                         .permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**",
                                 "/v3/api-docs/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/users/register")
+                        .permitAll() // Registration endpoint
                         .requestMatchers(HttpMethod.GET, API_BUILDS_PATH,
                                 "/api/builds/{identifier}",
                                 "/api/builds/{identifier}/schem")
@@ -139,12 +150,11 @@ public class SecurityConfig {
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
-                        // Removed curly braces for single-statement lambda
                         .logoutSuccessHandler((request, response, authentication) ->
                                 response.setStatus(HttpServletResponse.SC_OK)
                         )
                         .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
+                        .deleteCookies("JSESSIONID", "XSRF-TOKEN") // Clear XSRF token on logout
                         .permitAll());
         
         return http.build();
