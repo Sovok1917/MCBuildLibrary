@@ -1,7 +1,7 @@
 // File: frontend/src/context/AuthContext.jsx
 // noinspection JSUnusedGlobalSymbols
 
-import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
+import React, {createContext, useState, useContext, useEffect, useMemo, useCallback} from 'react';
 import PropTypes from 'prop-types'; // Import PropTypes
 import {
     login as apiLogin,
