@@ -10,43 +10,22 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import sovok.mcbuildlibrary.model.Build;
 
-/**
- * Repository for {@link Build} entities.
- * Provides methods for CRUD operations and custom queries,
- * including fetching builds with their associations and pagination.
- */
 public interface BuildRepository extends JpaRepository<Build, Long> {
     
-    /**
-     * Interface for projecting Build ID and Name.
-     * Used for optimized fetching of related build information.
-     */
     interface BuildIdAndName {
         Long getId();
         
         String getName();
     }
     
-    /**
-     * Interface for mapping related builds with their parent entity ID.
-     * Used in bulk fetching operations for DTO conversion.
-     */
     interface RelatedBuildWithParentId {
-        Long getParentId(); // AuthorId, ThemeId, or ColorId
+        Long getParentId();
         
         Long getBuildId();
         
         String getBuildName();
     }
     
-    /**
-     * Finds a build by its ID, eagerly fetching all its associations.
-     * This is primarily used for detailed views or operations like log generation
-     * where all data is needed.
-     *
-     * @param id The ID of the build.
-     * @return An {@link Optional} containing the build with associations if found.
-     */
     @Query("SELECT DISTINCT b FROM Build b "
             + "LEFT JOIN FETCH b.authors "
             + "LEFT JOIN FETCH b.themes "
@@ -55,12 +34,6 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
             + "WHERE b.id = :id")
     Optional<Build> findByIdWithAssociations(@Param("id") Long id);
     
-    /**
-     * Finds a build by its ID, eagerly fetching associations needed for log generation.
-     *
-     * @param id The ID of the build.
-     * @return An {@link Optional} containing the build with associations if found.
-     */
     @Query("SELECT DISTINCT b FROM Build b "
             + "LEFT JOIN FETCH b.authors "
             + "LEFT JOIN FETCH b.themes "
@@ -70,13 +43,6 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
     Optional<Build> findByIdWithAssociationsForLog(@Param("id") Long id);
     
     
-    /**
-     * Finds all builds with their associations, supporting pagination.
-     * Collections (authors, themes, colors, screenshots) are eagerly fetched.
-     *
-     * @param pageable Pagination information.
-     * @return A {@link Page} of builds.
-     */
     @Query(value = "SELECT DISTINCT b FROM Build b "
             + "LEFT JOIN FETCH b.authors "
             + "LEFT JOIN FETCH b.themes "
@@ -86,40 +52,38 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
     Page<Build> findAllWithAssociations(Pageable pageable);
     
     /**
-     * Filters builds based on provided criteria (author name, build name, theme name, color name)
-     * using case-insensitive LIKE comparisons, with associations eagerly fetched and pagination.
-     *
-     * @param authorName Optional author name to filter by (fuzzy match).
-     * @param buildName  Optional build name to filter by (fuzzy match).
-     * @param themeName  Optional theme name to filter by (fuzzy match).
-     * @param colorName  Optional color name to filter by (fuzzy match).
-     * @param pageable   Pagination information.
-     * @return A {@link Page} of filtered builds.
+     * Filters builds based on provided criteria.
+     * Uses LOWER(CAST(column AS string)) for column-side case-insensitivity.
+     * Uses LOWER(CONCAT('%', CAST(:parameter AS string), '%')) for parameter-side.
      */
     @Query(value = "SELECT DISTINCT b FROM Build b "
             + "LEFT JOIN FETCH b.authors ba "
             + "LEFT JOIN FETCH b.themes bt "
             + "LEFT JOIN FETCH b.colors bc "
             + "LEFT JOIN FETCH b.screenshots bs "
-            + "WHERE (:authorName IS NULL OR EXISTS (SELECT a FROM b.authors a WHERE LOWER(a.name) "
-            + "LIKE LOWER(CONCAT('%', :authorName, '%')))) "
-            + "AND (:buildName IS NULL OR LOWER(b.name) LIKE LOWER(CONCAT('%', :buildName, '%'))) "
-            + "AND (:themeName IS NULL OR EXISTS (SELECT t FROM b.themes t WHERE LOWER(t.name) "
-            + "LIKE LOWER(CONCAT('%', :themeName, '%')))) "
-            + "AND (:colorName IS NULL OR EXISTS (SELECT c FROM b.colors c WHERE LOWER(c.name) "
-            + "LIKE LOWER(CONCAT('%', :colorName, '%'))))",
+            + "WHERE (:authorName IS NULL OR EXISTS (SELECT a FROM b.authors a "
+            + "WHERE LOWER(CAST(a.name AS string)) "
+            + "LIKE LOWER(CONCAT('%', CAST(:authorName AS string), '%')))) " // CAST param
+            + "AND (:buildName IS NULL OR LOWER(CAST(b.name AS string)) "
+            + "LIKE LOWER(CONCAT('%', CAST(:buildName AS string), '%'))) "   // CAST param
+            + "AND (:themeName IS NULL OR EXISTS (SELECT t FROM b.themes t "
+            + "WHERE LOWER(CAST(t.name AS string)) "
+            + "LIKE LOWER(CONCAT('%', CAST(:themeName AS string), '%')))) " // CAST param
+            + "AND (:colorName IS NULL OR EXISTS (SELECT c FROM b.colors c "
+            + "WHERE LOWER(CAST(c.name AS string)) "
+            + "LIKE LOWER(CONCAT('%', CAST(:colorName AS string), '%'))))", // CAST param
             countQuery = "SELECT COUNT(DISTINCT b) FROM Build b "
-                    + "WHERE (:authorName IS NULL OR EXISTS (SELECT a FROM b.authors "
-                    + "a WHERE LOWER(a.name) "
-                    + "LIKE LOWER(CONCAT('%', :authorName, '%')))) "
-                    + "AND (:buildName IS NULL OR LOWER(b.name) LIKE "
-                    + "LOWER(CONCAT('%', :buildName, '%'))) "
+                    + "WHERE (:authorName IS NULL OR EXISTS (SELECT a FROM b.authors a "
+                    + "WHERE LOWER(CAST(a.name AS string)) "
+                    + "LIKE LOWER(CONCAT('%', CAST(:authorName AS string), '%')))) "
+                    + "AND (:buildName IS NULL OR LOWER(CAST(b.name AS string)) "
+                    + "LIKE LOWER(CONCAT('%', CAST(:buildName AS string), '%'))) "
                     + "AND (:themeName IS NULL OR EXISTS (SELECT t FROM b.themes t "
-                    + "WHERE LOWER(t.name) "
-                    + "LIKE LOWER(CONCAT('%', :themeName, '%')))) "
+                    + "WHERE LOWER(CAST(t.name AS string)) "
+                    + "LIKE LOWER(CONCAT('%', CAST(:themeName AS string), '%')))) "
                     + "AND (:colorName IS NULL OR EXISTS (SELECT c FROM b.colors c "
-                    + "WHERE LOWER(c.name) "
-                    + "LIKE LOWER(CONCAT('%', :colorName, '%'))))")
+                    + "WHERE LOWER(CAST(c.name AS string)) "
+                    + "LIKE LOWER(CONCAT('%', CAST(:colorName AS string), '%'))))")
     Page<Build> findFilteredWithAssociations(
             @Param("authorName") String authorName,
             @Param("buildName") String buildName,
@@ -127,20 +91,9 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
             @Param("colorName") String colorName,
             Pageable pageable);
     
-    /**
-     * Finds a build by its exact name.
-     *
-     * @param name The name of the build.
-     * @return An {@link Optional} containing the build if found.
-     */
+    // ... rest of the methods remain the same
     Optional<Build> findByName(String name);
     
-    /**
-     * Finds a build by its exact name, eagerly fetching associations.
-     *
-     * @param name The name of the build.
-     * @return An {@link Optional} containing the build with associations if found.
-     */
     @Query("SELECT DISTINCT b FROM Build b "
             + "LEFT JOIN FETCH b.authors "
             + "LEFT JOIN FETCH b.themes "
@@ -149,14 +102,6 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
             + "WHERE b.name = :name")
     Optional<Build> findByNameWithAssociations(@Param("name") String name);
     
-    /**
-     * Finds builds associated with a specific theme ID, with associations eagerly fetched and
-     * pagination.
-     *
-     * @param themeId  The ID of the theme.
-     * @param pageable Pagination information.
-     * @return A {@link Page} of builds associated with the theme.
-     */
     @Query(value = "SELECT DISTINCT b FROM Build b "
             + "LEFT JOIN FETCH b.authors "
             + "LEFT JOIN FETCH b.themes t "
@@ -168,14 +113,6 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
     Page<Build> findBuildsByThemeIdWithAssociations(@Param("themeId") Long themeId,
                                                     Pageable pageable);
     
-    /**
-     * Finds builds associated with a specific color ID, with associations eagerly fetched and
-     * pagination.
-     *
-     * @param colorId  The ID of the color.
-     * @param pageable Pagination information.
-     * @return A {@link Page} of builds associated with the color.
-     */
     @Query(value = "SELECT DISTINCT b FROM Build b "
             + "LEFT JOIN FETCH b.authors "
             + "LEFT JOIN FETCH b.themes "
@@ -187,14 +124,6 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
     Page<Build> findBuildsByColorIdWithAssociations(@Param("colorId") Long colorId,
                                                     Pageable pageable);
     
-    /**
-     * Finds builds associated with a specific author ID, with associations eagerly fetched and
-     * pagination.
-     *
-     * @param authorId The ID of the author.
-     * @param pageable Pagination information.
-     * @return A {@link Page} of builds associated with the author.
-     */
     @Query(value = "SELECT DISTINCT b FROM Build b "
             + "LEFT JOIN FETCH b.authors a "
             + "LEFT JOIN FETCH b.themes "
@@ -207,8 +136,6 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
                                                      Pageable pageable);
     
     
-    // Methods for DTO conversion (related builds for Author/Theme/Color DTOs)
-    // These are used by BaseNamedEntityService and its children.
     @Query("SELECT b.id as id, b.name as name FROM Build b JOIN b.authors a WHERE a.id = :authorId")
     List<BuildIdAndName> findBuildIdAndNameByAuthorId(@Param("authorId") Long authorId);
     
@@ -230,7 +157,6 @@ public interface BuildRepository extends JpaRepository<Build, Long> {
             + "FROM Build b JOIN b.colors c WHERE c.id IN :colorIds")
     List<RelatedBuildWithParentId> findBuildsByColorIds(@Param("colorIds") Set<Long> colorIds);
     
-    // Legacy methods (to be reviewed if still needed or can be replaced by paginated versions)
     @Query("SELECT b FROM Build b JOIN b.themes t WHERE t.id = :themeId")
     List<Build> findBuildsByThemeId(@Param("themeId") Long themeId);
     
