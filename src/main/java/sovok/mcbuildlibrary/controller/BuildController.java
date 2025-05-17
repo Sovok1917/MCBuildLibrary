@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -187,8 +189,6 @@ public class BuildController {
             throw new IllegalArgumentException(StringConstants.FILE_NOT_EMPTY);
         }
         
-        // Author names are taken directly from the request.
-        // Ensure uniqueness if desired, but no automatic addition of principal.
         List<String> finalAuthorNames = new ArrayList<>(new HashSet<>(authorNames));
         
         Build buildToCreate = createBuildFromParams(name, finalAuthorNames, themeNames, description,
@@ -198,13 +198,14 @@ public class BuildController {
     }
     
     /**
-     * Retrieves a specific build by its ID or exact name.
+     * Retrieves a specific build by its ID or exact name, with all associations.
      *
      * @param identifier The ID or exact name of the build.
      * @return ResponseEntity containing the found Build or 404 if not found.
      */
-    @Operation(summary = "Get build by identifier", description = "Retrieves a specific build by "
-            + "its ID or exact name.")
+    @Operation(summary = "Get build by identifier (with associations)",
+            description = "Retrieves a specific build by its ID or exact name, including all "
+                    + "authors, themes, colors, and screenshots.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200",
             description = "Successfully retrieved build",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
@@ -214,74 +215,75 @@ public class BuildController {
                     schema = @Schema(implementation = ProblemDetail.class)))
     })
     @GetMapping("/{identifier}")
-    public ResponseEntity<Build> getBuildByIdentifier(
+    public ResponseEntity<Build> getBuildByIdentifierWithAssociations(
             @Parameter(description = "ID or exact name of the build", required = true,
                     example = "10 or MyAwesomeCastle")
             @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier) {
-        Build build = findBuildByIdentifierInternal(identifier);
+        Build build = buildService.findBuildByIdentifierWithAssociations(identifier);
         return ResponseEntity.ok(build);
     }
     
     /**
-     * Retrieves a list of all builds (metadata only).
+     * Retrieves a paginated list of all builds with associations.
      *
-     * @return ResponseEntity containing a list of all Builds.
+     * @param pageable Pagination information (e.g., page, size, sort).
+     * @return ResponseEntity containing a Page of Builds.
      */
-    @Operation(summary = "Get all builds", description = "Retrieves a list of all builds "
-            + "(metadata only).")
+    @Operation(summary = "Get all builds (paginated)",
+            description = "Retrieves a paginated list of all builds, with associations "
+                    + "(authors, themes, colors, screenshots) eagerly fetched.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200",
             description = "Successfully retrieved builds",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = Build[].class)))
+                    schema = @Schema(implementation = Page.class))) // Schema for Page<Build>
     })
     @GetMapping
-    public ResponseEntity<List<Build>> getAllBuilds() {
-        List<Build> builds = buildService.findAll();
-        return ResponseEntity.ok(builds);
+    public ResponseEntity<Page<Build>> getAllBuildsPaginated(Pageable pageable) {
+        Page<Build> buildsPage = buildService.findAllWithAssociations(pageable);
+        return ResponseEntity.ok(buildsPage);
     }
     
     /**
-     * Finds builds using fuzzy matching on author, name, theme, and color.
+     * Finds builds using fuzzy matching on author, name, theme, and color, with pagination.
      *
-     * @param author Optional fuzzy author name filter.
-     * @param name   Optional fuzzy build name filter.
-     * @param theme  Optional fuzzy theme name filter.
-     * @param color  Optional fuzzy color name filter.
-     * @return ResponseEntity containing a list of filtered Builds.
+     * @param author   Optional fuzzy author name filter.
+     * @param name     Optional fuzzy build name filter.
+     * @param theme    Optional fuzzy theme name filter.
+     * @param color    Optional fuzzy color name filter.
+     * @param pageable Pagination information.
+     * @return ResponseEntity containing a Page of filtered Builds.
      */
-    @Operation(summary = "Find builds by query parameters", description = "Finds builds using "
-            + "fuzzy matching on author, name, theme, and color.")
+    @Operation(summary = "Find builds by query parameters (paginated)",
+            description = "Finds builds using fuzzy matching on author, name, theme, and color, "
+                    + "with associations eagerly fetched and results paginated.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200", description
-            = "Successfully found builds (list "
-            + "might be empty)",
+            = "Successfully found builds (page might be empty)",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = Build[].class))), @ApiResponse(
-            responseCode = "400", description = "Invalid query "
+                    schema = @Schema(implementation = Page.class))), @ApiResponse(responseCode
+            = "400", description = "Invalid query "
             + "parameter provided",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
     })
     @GetMapping("/query")
-    public ResponseEntity<List<Build>> getBuildsByQuery(
-            @Parameter(description = "Fuzzy author name filter",
-                    example = "BldrBob")
+    public ResponseEntity<Page<Build>> getBuildsByQueryPaginated(
+            @Parameter(description = "Fuzzy author name filter", example = "BldrBob")
             @RequestParam(value = StringConstants.AUTHOR_QUERY_PARAM, required = false)
             String author,
-            @Parameter(description = "Fuzzy build name filter",
-                    example = "Castle")
+            @Parameter(description = "Fuzzy build name filter", example = "Castle")
             @RequestParam(value = StringConstants.NAME_REQ_PARAM, required = false)
             String name,
-            @Parameter(description = "Fuzzy theme name filter",
-                    example = "Mediev")
+            @Parameter(description = "Fuzzy theme name filter", example = "Mediev")
             @RequestParam(value = StringConstants.THEME_QUERY_PARAM, required = false)
             String theme,
-            @Parameter(description = "Fuzzy color name filter",
-                    example = "Stone")
+            @Parameter(description = "Fuzzy color name filter", example = "Stone")
             @RequestParam(value = StringConstants.COLOR_QUERY_PARAM, required = false)
-            String color) {
+            String color,
+            Pageable pageable) {
         
-        List<Build> filteredBuilds = buildService.filterBuilds(author, name, theme, color);
-        return ResponseEntity.ok(filteredBuilds);
+        Page<Build> filteredBuildsPage = buildService.filterBuildsWithAssociations(
+                author, name, theme, color, pageable);
+        return ResponseEntity.ok(filteredBuildsPage);
     }
     
     /**
@@ -306,7 +308,7 @@ public class BuildController {
             @Parameter(description = "ID or exact name of the build", required = true,
                     example = "10 or MyAwesomeCastle")
             @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier) {
-        Build build = findBuildByIdentifierInternal(identifier);
+        Build build = buildService.findBuildByIdentifierWithAssociations(identifier);
         List<String> screenshots = build.getScreenshots();
         return ResponseEntity.ok(screenshots != null ? screenshots : Collections.emptyList());
     }
@@ -379,7 +381,7 @@ public class BuildController {
             MultipartFile schemFile
     ) throws IOException {
         
-        Build existingBuild = findBuildByIdentifierInternal(identifier);
+        Build existingBuild = buildService.findBuildByIdentifierWithAssociations(identifier);
         
         if (schemFile != null && schemFile.isEmpty()) {
             throw new IllegalArgumentException(StringConstants.FILE_NOT_EMPTY);
@@ -414,7 +416,7 @@ public class BuildController {
             @Parameter(description = "ID or exact name of the build to delete", required = true,
                     example = "10 or MyAwesomeCastle")
             @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier) {
-        Build build = findBuildByIdentifierInternal(identifier);
+        Build build = buildService.findBuildByIdentifierWithAssociations(identifier);
         buildService.deleteBuild(build.getId());
         return ResponseEntity.noContent().build();
     }
@@ -439,7 +441,7 @@ public class BuildController {
             @Parameter(description = "ID or exact name of the build", required = true,
                     example = "10 or MyAwesomeCastle")
             @PathVariable(StringConstants.IDENTIFIER_PATH_VAR) String identifier) {
-        Build build = findBuildByIdentifierInternal(identifier);
+        Build build = buildService.findBuildByIdentifierWithAssociations(identifier);
         byte[] schemFileBytes = buildService.getSchemFile(build.getId())
                 .orElseThrow(() -> new NoSuchElementException(
                         String.format(StringConstants.SCHEM_FILE_FOR_BUILD_NOT_FOUND, identifier)));
@@ -453,60 +455,44 @@ public class BuildController {
         return new ResponseEntity<>(schemFileBytes, headers, HttpStatus.OK);
     }
     
-    private Build findBuildByIdentifierInternal(String identifier) {
-        try {
-            Long buildId = Long.valueOf(identifier);
-            return buildService.findBuildById(buildId)
-                    .orElseThrow(() -> new NoSuchElementException(
-                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    StringConstants.BUILD, StringConstants.WITH_ID, identifier,
-                                    StringConstants.NOT_FOUND_MESSAGE)));
-        } catch (NumberFormatException e) {
-            return buildService.findByName(identifier)
-                    .orElseThrow(() -> new NoSuchElementException(
-                            String.format(StringConstants.RESOURCE_NOT_FOUND_TEMPLATE,
-                                    StringConstants.BUILD, StringConstants.WITH_NAME, identifier,
-                                    StringConstants.NOT_FOUND_MESSAGE)));
-        }
-    }
     
     /**
-     * Finds builds related to a specific entity (Author, Theme, Color) by its ID.
+     * Finds builds related to a specific entity (Author, Theme, Color) by its ID, paginated.
      *
-     * @param type The type of the entity ("author", "theme", "color").
-     * @param id   The ID of the entity.
-     * @return ResponseEntity containing a list of related Builds.
+     * @param type     The type of the entity ("author", "theme", "color").
+     * @param id       The ID of the entity.
+     * @param pageable Pagination information.
+     * @return ResponseEntity containing a Page of related Builds.
      */
-    @Operation(summary = "Find builds by related entity ID", description = "Finds builds "
-            + "associated with a specific Author, Theme, or Color ID.")
+    @Operation(summary = "Find builds by related entity ID (paginated)",
+            description = "Finds builds associated with a specific Author, Theme, or Color ID, "
+                    + "with associations eagerly fetched and results paginated.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200",
-            description = "Successfully found related builds (list might be empty)",
+            description = "Successfully found related builds (page might be empty)",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                    schema = @Schema(implementation = Build[].class))), @ApiResponse(
-            responseCode = "400", description = "Invalid entity type or ID format provided",
+                    schema = @Schema(implementation = Page.class))), @ApiResponse(responseCode
+            = "400", description = "Invalid entity type or ID format provided",
             content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
-            // 404 is implicitly handled if the ID leads to no builds, returning empty list.
-            // If 404 is needed when the *parent* entity (author/theme/color) doesn't exist,
-            // the service layer would need adjustment.
     })
     @GetMapping("/related")
-    public ResponseEntity<List<Build>> getBuildsByRelatedEntity(
+    public ResponseEntity<Page<Build>> getBuildsByRelatedEntityPaginated(
             @Parameter(description = "Type of the related entity", required = true,
                     example = "author", schema = @Schema(allowableValues = {"author", "theme",
                         "color"}))
             @RequestParam("type") @NotBlank String type,
             @Parameter(description = "ID of the related entity", required = true, example = "1")
-            @RequestParam("id") @NotNull Long id) {
+            @RequestParam("id") @NotNull Long id,
+            Pageable pageable) {
         
-        // Basic validation for type - can be enhanced
         String lowerCaseType = type.toLowerCase();
         if (!List.of(StringConstants.AUTHOR.toLowerCase(), StringConstants.THEME.toLowerCase(),
                 StringConstants.COLOR.toLowerCase()).contains(lowerCaseType)) {
             throw new IllegalArgumentException("Invalid entity type provided: " + type);
         }
         
-        List<Build> relatedBuilds = buildService.findBuildsByRelatedEntity(lowerCaseType, id);
-        return ResponseEntity.ok(relatedBuilds);
+        Page<Build> relatedBuildsPage = buildService.findBuildsByRelatedEntityWithAssociations(
+                lowerCaseType, id, pageable);
+        return ResponseEntity.ok(relatedBuildsPage);
     }
 }

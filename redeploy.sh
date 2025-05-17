@@ -8,7 +8,7 @@ echo "🚀 Starting Redeployment Script 🚀"
 echo "------------------------------------"
 
 # --- Configuration (Optional: customize these) ---
-SKIP_GIT_PULL=false
+SKIP_GIT_PULL=true
 SKIP_TESTS=true
 CLEAN_DOCKER_RESOURCES=false # Set to true to prune docker resources after deployment
 

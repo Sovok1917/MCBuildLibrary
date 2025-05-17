@@ -1,4 +1,5 @@
 // File: frontend/src/api/buildService.js
+// File: frontend/src/api/buildService.js
 
 const API_BASE_URL = '/api/builds';
 
@@ -18,19 +19,29 @@ function getCookie(name) {
 }
 
 /**
- * Fetches builds based on filter criteria. (GET request - no CSRF token needed)
- * @param {Object} filters - An object containing filter criteria.
- * @returns {Promise<Array<Object>>} A promise that resolves to an array of filtered build objects.
+ * Fetches builds based on filter criteria and pagination.
+ * @param {Object} filters - An object containing filter criteria (name, author, theme, color).
+ * @param {number} page - The page number (0-indexed).
+ * @param {number} size - The number of items per page.
+ * @returns {Promise<Object>} A promise that resolves to a page object from Spring Data (
+ * content, totalPages, etc.).
  */
-export const getFilteredBuilds = async ({ name, author, theme, color }) => {
+export const getFilteredBuilds = async ({ name, author, theme, color }, page = 0, size = 9) => {
     const queryParams = new URLSearchParams();
     if (name) queryParams.append('name', name);
     if (author) queryParams.append('author', author);
     if (theme) queryParams.append('theme', theme);
     if (color) queryParams.append('color', color);
 
+    queryParams.append('page', page.toString());
+    queryParams.append('size', size.toString());
+    // Add sort if needed, e.g., queryParams.append('sort', 'name,asc');
+
     const queryString = queryParams.toString();
-    const url = queryString ? `${API_BASE_URL}/query?${queryString}` : API_BASE_URL;
+    // Determine if using /query endpoint or base /api/builds
+    const useQueryEndpoint = name || author || theme || color;
+    const baseUrl = useQueryEndpoint ? `${API_BASE_URL}/query` : API_BASE_URL;
+    const url = `${baseUrl}?${queryString}`;
 
     console.log(`Fetching builds from URL: ${url}`);
 
@@ -39,9 +50,9 @@ export const getFilteredBuilds = async ({ name, author, theme, color }) => {
         const errorData = await response.json().catch(() => ({
             message: 'Network response was not ok'
         }));
-        throw new Error(errorData.detail || errorData.message || 'Failed to fetch filtered builds');
+        throw new Error(errorData.detail || errorData.message || 'Failed to fetch builds');
     }
-    return response.json();
+    return response.json(); // Expects Spring Page object
 };
 
 /**
@@ -128,18 +139,23 @@ export const deleteBuild = async (identifier) => {
 };
 
 /**
- * Fetches builds related to a specific entity ID. (GET request - no CSRF token needed)
+ * Fetches builds related to a specific entity ID, with pagination.
  * @param {string} type - The type of the entity ('author', 'theme', 'color').
  * @param {number|string} id - The ID of the entity.
- * @returns {Promise<Array<Object>>} A promise that resolves to an array of related build objects.
+ * @param {number} page - The page number (0-indexed).
+ * @param {number} size - The number of items per page.
+ * @returns {Promise<Object>} A promise that resolves to a page object.
  */
-export const getBuildsByRelatedEntity = async (type, id) => {
+export const getBuildsByRelatedEntity = async (type, id, page = 0, size = 9) => {
     if (!type || id == null) {
         throw new Error('Entity type and ID are required for related build search.');
     }
     const queryParams = new URLSearchParams();
     queryParams.append('type', type);
     queryParams.append('id', id.toString());
+    queryParams.append('page', page.toString());
+    queryParams.append('size', size.toString());
+    // Add sort if needed
 
     const url = `${API_BASE_URL}/related?${queryParams.toString()}`;
 
@@ -148,5 +164,5 @@ export const getBuildsByRelatedEntity = async (type, id) => {
         const errorData = await response.json().catch(() => ({ message: 'Network response was not ok' }));
         throw new Error(errorData.detail || errorData.message || `Failed to fetch builds related to ${type} ID ${id}`);
     }
-    return response.json();
+    return response.json(); // Expects Spring Page object
 };

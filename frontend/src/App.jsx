@@ -1,5 +1,5 @@
 // File: frontend/src/App.jsx
-// noinspection JSUnusedGlobalSymbols
+// noinspection JSUnusedGlobalSymbols,XmlDeprecatedElement
 
 import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
@@ -8,12 +8,12 @@ import BuildList from './components/BuildList';
 import BuildForm from './components/BuildForm';
 import FilterSidebar from './components/FilterSidebar';
 import Login from './components/Login';
-import Register from './components/Register'; // <-- Import Register component
+import Register from './components/Register';
 import { getFilteredBuilds, getBuildsByRelatedEntity } from './api/buildService';
 import { useAuth } from './context/AuthContext.jsx';
 import { useDebounce } from './hooks/useDebounce';
 
-// Material UI Imports... (remain the same)
+// Material UI Imports
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import AppBar from '@mui/material/AppBar';
@@ -28,8 +28,9 @@ import Chip from '@mui/material/Chip';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
+import Pagination from '@mui/material/Pagination'; // <-- Import Pagination
 
-// Icons... (remain the same)
+// Icons
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -38,13 +39,9 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import HomeIcon from '@mui/icons-material/Home';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import PersonAddIcon from '@mui/icons-material/PersonAdd'; // <-- Icon for Register button
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
-/**
- * ProtectedRoute component remains the same...
- */
 const ProtectedRoute = ({ children }) => {
-    // ... (implementation remains the same)
     const { isAuthenticated, isLoadingAuth } = useAuth();
     const location = useLocation();
 
@@ -67,12 +64,7 @@ ProtectedRoute.propTypes = {
     children: PropTypes.node.isRequired,
 };
 
-
-/**
- * AppContent component remains the same...
- */
 function AppContent({ searchQuery, setSearchQuery }) {
-    // ... (implementation remains the same)
     const [builds, setBuilds] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -82,15 +74,18 @@ function AppContent({ searchQuery, setSearchQuery }) {
     const { isAuthenticated, hasRole } = useAuth();
     const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1); // 1-indexed for MUI Pagination
+    const [totalPages, setTotalPages] = useState(0);
+    const [itemsPerPage] = useState(9); // Default items per page
+
     const buildListRightEdgeVisualInset = 46;
 
     const parseSearchQuery = (query) => {
-        // ... (implementation remains the same)
         const params = { name: null, author: null, theme: null, color: null };
         if (!query || query.trim() === '') {
             return params;
         }
-
         let remainingQuery = query.trim();
         const keywords = ['author', 'theme', 'color'];
         keywords.forEach(keyword => {
@@ -107,62 +102,63 @@ function AppContent({ searchQuery, setSearchQuery }) {
                 }
             }
         });
-
         if (remainingQuery) {
             params.name = remainingQuery;
         }
-
         console.log("Parsed search params:", params);
         return params;
     };
 
-
     const fetchBuilds = useCallback(async () => {
-        // ... (implementation remains the same)
         try {
             setIsLoading(true);
             setError(null);
-            let data;
+            let responseData; // Will be Spring Page object
+            const pageToFetch = currentPage - 1; // API is 0-indexed
+
             const trimmedDebouncedQuery = debouncedSearchQuery.trim();
 
             if (trimmedDebouncedQuery !== '') {
                 const searchParams = parseSearchQuery(trimmedDebouncedQuery);
-                const hasValidSearchParam = Object.values(searchParams).some(val => val);
-
-                if (hasValidSearchParam) {
-                    console.log(`Fetching builds using parsed search:`, searchParams);
-                    data = await getFilteredBuilds(searchParams);
-                } else {
-                    console.log("Search query parsed to no valid terms, fetching all builds.");
-                    data = await getFilteredBuilds({});
-                }
+                console.log(`Fetching builds using parsed search:`, searchParams, `Page: ${pageToFetch}`);
+                responseData = await getFilteredBuilds(searchParams, pageToFetch, itemsPerPage);
                 if (activeFilter.type || activeFilter.id) {
                     setActiveFilter({ type: null, id: null, name: null });
                 }
             } else if (activeFilter?.type && activeFilter?.id != null) {
-                console.log(`Fetching builds by related entity: ${activeFilter.type}, ID: ${activeFilter.id}`);
-                data = await getBuildsByRelatedEntity(activeFilter.type, activeFilter.id);
+                console.log(`Fetching builds by related entity: ${activeFilter.type}, ID: ${activeFilter.id}, Page: ${pageToFetch}`);
+                responseData = await getBuildsByRelatedEntity(activeFilter.type, activeFilter.id, pageToFetch, itemsPerPage);
             } else {
-                console.log("Fetching all builds (no active filter or search).");
-                data = await getFilteredBuilds({});
+                console.log(`Fetching all builds (no active filter or search). Page: ${pageToFetch}`);
+                responseData = await getFilteredBuilds({}, pageToFetch, itemsPerPage);
             }
-            setBuilds(data);
+
+            setBuilds(responseData.content || []);
+            setTotalPages(responseData.totalPages || 0);
+            // setCurrentPage will be updated by handlePageChange or reset if filters change
         } catch (err) {
             console.error("Error fetching builds:", err);
             setError(err.message);
             setBuilds([]);
+            setTotalPages(0);
         } finally {
             setIsLoading(false);
         }
-    }, [activeFilter, debouncedSearchQuery]);
+    }, [activeFilter, debouncedSearchQuery, currentPage, itemsPerPage]); // Add currentPage and itemsPerPage
 
     useEffect(() => {
         void fetchBuilds();
-    }, [fetchBuilds]);
+    }, [fetchBuilds]); // fetchBuilds callback dependencies handle re-fetch
+
+    // Reset to page 1 when filter or search query changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeFilter, debouncedSearchQuery]);
+
 
     const handleFilterChange = (type, identifier, name = null) => {
-        // ... (implementation remains the same)
         setSearchQuery('');
+        setCurrentPage(1); // Reset page on filter change
         if (type === null) {
             setActiveFilter({ type: null, id: null, name: null });
         } else {
@@ -174,19 +170,19 @@ function AppContent({ searchQuery, setSearchQuery }) {
     };
 
     const handleItemUpdatedOrDeletedInApp = (itemType, itemId, actionType) => {
-        // ... (implementation remains the same)
         if (activeFilter?.type === itemType && activeFilter?.id === itemId) {
             console.log(`Active filter item (${itemType} ID: ${itemId}) was ${actionType}d. Clearing filter.`);
             setActiveFilter({ type: null, id: null, name: null });
             setSearchQuery('');
+            setCurrentPage(1); // Reset page
         } else {
             console.log(`Item (${itemType} ID: ${itemId}) was ${actionType}d. Refetching builds.`);
+            // No need to reset page if the active filter wasn't the one modified
             void fetchBuilds();
         }
     };
 
     const handleShowCreateForm = () => {
-        // ... (implementation remains the same)
         const initialDataForForm = {};
         if (!searchQuery && activeFilter?.type && activeFilter?.name) {
             if (activeFilter.type === 'author') initialDataForForm.authorNames = activeFilter.name;
@@ -198,20 +194,18 @@ function AppContent({ searchQuery, setSearchQuery }) {
     };
 
     const handleFormSubmitSuccess = () => {
-        // ... (implementation remains the same)
+        setCurrentPage(1); // Go to first page to see new/updated item potentially
         void fetchBuilds();
         setEditingBuild(null);
         setIsFormVisible(false);
     };
 
     const handleCancelForm = () => {
-        // ... (implementation remains the same)
         setEditingBuild(null);
         setIsFormVisible(false);
     };
 
     const handleEditBuild = (buildToEdit) => {
-        // ... (implementation remains the same)
         if (hasRole('ROLE_ADMIN')) {
             setEditingBuild(buildToEdit);
             setIsFormVisible(true);
@@ -221,22 +215,26 @@ function AppContent({ searchQuery, setSearchQuery }) {
     };
 
     const handleBuildDeleted = (deletedBuildId) => {
-        // ... (implementation remains the same)
         if (editingBuild?.id === deletedBuildId) {
             setEditingBuild(null);
             setIsFormVisible(false);
         }
+        // Refetch, potentially on a different page if current page becomes empty
         void fetchBuilds();
     };
 
     const getChipLabel = () => {
-        // ... (implementation remains the same)
         if (!activeFilter?.type || !activeFilter?.name) {
             return '';
         }
         const baseLabel = `${activeFilter.type}: ${activeFilter.name}`;
         return hasRole('ROLE_ADMIN') ? `${baseLabel} (ID: ${activeFilter.id})` : baseLabel;
     };
+
+    const handlePageChange = (event, value) => {
+        setCurrentPage(value);
+    };
+
 
     return (
         <Box sx={{ display: 'flex', mt: '64px' }}> {/* AppBar height */}
@@ -258,7 +256,6 @@ function AppContent({ searchQuery, setSearchQuery }) {
                     justifyContent="space-between"
                     sx={{ mb: 2, mt: { xs: 1, sm: 0 } }}
                 >
-                    {/* Title and Chips */}
                     <Grid item xs>
                         <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                             <Typography variant="h4" component="h2" sx={{ mr: 2, mb: { xs: 1, sm: 0 } }}>
@@ -278,7 +275,7 @@ function AppContent({ searchQuery, setSearchQuery }) {
                                 <Chip
                                     icon={<SearchIcon />}
                                     label={`Search: "${searchQuery}"`}
-                                    onDelete={() => setSearchQuery('')}
+                                    onDelete={() => { setSearchQuery(''); setCurrentPage(1);}}
                                     color="secondary"
                                     variant="outlined"
                                     sx={{ ml: (!activeFilter?.type || searchQuery) ? 2 : 0, display: { xs: 'none', sm: 'flex' } }}
@@ -286,7 +283,6 @@ function AppContent({ searchQuery, setSearchQuery }) {
                             )}
                         </Box>
                     </Grid>
-                    {/* Action Buttons/Indicators */}
                     <Grid
                         item
                         xs="auto"
@@ -314,7 +310,6 @@ function AppContent({ searchQuery, setSearchQuery }) {
                     </Grid>
                 </Grid>
 
-                {/* Build Form Collapse */}
                 <Collapse in={isFormVisible && isAuthenticated} timeout="auto" unmountOnExit>
                     <Box
                         sx={{
@@ -334,19 +329,37 @@ function AppContent({ searchQuery, setSearchQuery }) {
                     </Box>
                 </Collapse>
 
-                {/* Loading/Error/BuildList */}
                 {isLoading && (<Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>)}
                 {error && (<Alert severity="error" sx={{ mt: 3 }}>{error}</Alert>)}
                 {!isLoading && !error && (
-                    <BuildList
-                        builds={builds}
-                        onBuildDeleted={handleBuildDeleted}
-                        onEditBuild={handleEditBuild}
-                    />
+                    <>
+                        <BuildList
+                            builds={builds}
+                            onBuildDeleted={handleBuildDeleted}
+                            onEditBuild={handleEditBuild}
+                        />
+                        {totalPages > 0 && (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 2 }}>
+                                <Pagination
+                                    count={totalPages}
+                                    page={currentPage}
+                                    onChange={handlePageChange}
+                                    color="primary"
+                                    showFirstButton
+                                    showLastButton
+                                />
+                            </Box>
+                        )}
+                    </>
                 )}
                 {!isLoading && !error && builds.length === 0 && (searchQuery || activeFilter.id) && (
                     <Alert severity="info" sx={{ mt: 3 }}>
                         No builds found matching your {searchQuery ? 'search query' : 'filter'}.
+                    </Alert>
+                )}
+                {!isLoading && !error && builds.length === 0 && !searchQuery && !activeFilter.id && (
+                    <Alert severity="info" sx={{ mt: 3 }}>
+                        No builds available. Try adding some!
                     </Alert>
                 )}
             </Container>
@@ -359,10 +372,6 @@ AppContent.propTypes = {
     setSearchQuery: PropTypes.func.isRequired,
 };
 
-/**
- * App component is the root component that sets up routing and the main AppBar.
- * It manages global states like authentication and search query.
- */
 function App() {
     const { isAuthenticated, logout, isLoadingAuth, currentUser } = useAuth();
     const navigate = useNavigate();
@@ -396,7 +405,6 @@ function App() {
         <>
             <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
                 <Toolbar>
-                    {/* Home Button */}
                     <Button component={RouterLink} to="/" color="inherit" startIcon={<HomeIcon />} sx={{ mr: 1 }}>
                         <Typography variant="h6" component="div" sx={{ display: { xs: 'none', sm: 'block' } }}>
                             MC Builds
@@ -406,7 +414,6 @@ function App() {
                         MC Builds
                     </Typography>
 
-                    {/* Search Bar (only when authenticated) */}
                     {isAuthenticated && (
                         <Box sx={{ position: 'relative', borderRadius: 1, backgroundColor: 'rgba(255, 255, 255, 0.15)', '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.25)' }, mr: 2, flexGrow: { xs: 1, sm: 0 }, width: { xs: 'auto', sm: 'auto' }, minWidth: { sm: '380px'} }}>
                             <TextField
@@ -415,36 +422,38 @@ function App() {
                                 fullWidth
                                 value={searchQuery}
                                 onChange={handleSearchChange}
-                                startAdornment={
-                                    <InputAdornment position="start">
-                                        <SearchIcon sx={{ color: 'common.white', ml: 1 }} />
-                                    </InputAdornment>
-                                }
-                                endAdornment={searchQuery ? (
-                                    <InputAdornment position="end">
-                                        <IconButton
-                                            aria-label="clear search"
-                                            onClick={clearSearch}
-                                            edge="end"
-                                            size="small"
-                                            sx={{ color: 'common.white', mr: 1 }}
-                                        >
-                                            <ClearIcon fontSize="small"/>
-                                        </IconButton>
-                                    </InputAdornment>
-                                ) : null}
-                                disableUnderline
-                                sx={{
-                                    '& .MuiInput-root': { color: 'common.white', padding: '6px 10px', marginTop: 0 },
-                                    '& .MuiInputBase-input': { paddingTop: '2px', paddingBottom: '2px', '&::placeholder': { color: 'rgba(255, 255, 255, 0.6)', opacity: 1, fontSize: '0.875rem' } },
+                                InputProps={{ // Changed from startAdornment/endAdornment directly on TextField
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ color: 'common.white', ml: 1 }} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: searchQuery ? (
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                aria-label="clear search"
+                                                onClick={clearSearch}
+                                                edge="end"
+                                                size="small"
+                                                sx={{ color: 'common.white', mr: 1 }}
+                                            >
+                                                <ClearIcon fontSize="small"/>
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ) : null,
+                                    disableUnderline: true, // Moved here
+                                    sx:{ // Moved here
+                                        color: 'common.white', padding: '6px 10px', marginTop: 0,
+                                        '& .MuiInputBase-input::placeholder': { color: 'rgba(255, 255, 255, 0.6)', opacity: 1, fontSize: '0.875rem' },
+                                        '& .MuiInputBase-input': { paddingTop: '2px', paddingBottom: '2px' }
+                                    }
                                 }}
                             />
                         </Box>
                     )}
 
-                    <Box sx={{ flexGrow: 1 }} /> {/* Spacer */}
+                    <Box sx={{ flexGrow: 1 }} />
 
-                    {/* Auth Buttons */}
                     {isAuthenticated ? (
                         <>
                             <Typography sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}>
@@ -456,7 +465,6 @@ function App() {
                         </>
                     ) : (
                         <>
-                            {/* Show Register button next to Login */}
                             <Button color="inherit" startIcon={<PersonAddIcon />} component={RouterLink} to="/register" sx={{ mr: 1 }}>
                                 Register
                             </Button>
@@ -468,12 +476,9 @@ function App() {
                 </Toolbar>
             </AppBar>
 
-            {/* Routes */}
             <Routes>
-                {/* Redirect authenticated users away from login/register */}
                 <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
                 <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <Register />} />
-                {/* Protected main content route */}
                 <Route
                     path="/*"
                     element={
