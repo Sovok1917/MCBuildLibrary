@@ -1,7 +1,7 @@
 // File: frontend/src/api/authService.js
 
-const LOGIN_URL = '/login'; // Spring Security's default form login processing URL
-const LOGOUT_URL = '/logout'; // Spring Security's default logout URL
+const LOGIN_URL = '/api/perform_login'; // UPDATED - Spring Security's form login processing URL
+const LOGOUT_URL = '/api/perform_logout'; // UPDATED - Spring Security's default logout URL
 const CURRENT_USER_URL = '/api/users/me'; // Backend endpoint for current user
 const REGISTER_URL = '/api/users/register'; // Backend endpoint for registration
 
@@ -41,45 +41,36 @@ export const login = async (username, password) => {
         headers['X-XSRF-TOKEN'] = csrfToken;
     }
 
-    const response = await fetch(LOGIN_URL, {
+    const response = await fetch(LOGIN_URL, { // Uses updated LOGIN_URL
         method: 'POST',
-        headers: headers, // Pass updated headers
+        headers: headers,
         body: params,
     });
 
     if (response.ok) {
-        // Login POST was successful, session cookie should be set.
-        // Now fetch the user details. If getCurrentUser() throws, it will propagate.
         const user = await getCurrentUser();
         if (!user) {
             console.error(
                 "Login POST successful, but getCurrentUser() returned null or failed silently.");
             throw new Error('Login succeeded, but failed to retrieve valid user data.');
         }
-        return user; // Successfully logged in and fetched user details
+        return user;
     } else {
-        // Handle non-ok responses from the /login POST itself
         let errorMessage = `Login failed. Status: ${response.status}`;
         // Check if Spring Security redirected to /login?error (common for bad credentials)
-        // Spring Security's default behavior for form login failure is a redirect.
-        // The actual response status might be 200 OK if it's serving the login page with an error.
-        // However, for SPA, a 401 from the POST itself is more direct.
-        // If response.url includes '/login?error', it's a strong indicator of bad credentials
-        // from Spring Security's perspective.
-        if (response.url?.includes("/login?error")) {
+        // This check might need adjustment if loginPage is not explicitly /login anymore
+        // For API-based login, a 401 from the POST itself is more direct.
+        if (response.url?.includes("?error")) { // Generic error check
             errorMessage = 'Invalid username or password.';
         } else if (response.status === 401 || response.status === 403) {
-            // Handle explicit 401 (Unauthorized) or 403 (Forbidden - often CSRF)
             errorMessage = 'Authentication failed. Please check credentials or try again.';
             try {
-                // Attempt to get a more specific message if the server sent one
                 const errorBody = await response.json();
                 errorMessage = errorBody.message || errorBody.detail || errorMessage;
             } catch (e) {
                 // If body is not JSON or empty, use the generic message
             }
         } else {
-            // For other non-ok statuses, try to parse an error message
             try {
                 const errorBody = await response.json();
                 errorMessage = errorBody.message || errorBody.detail || errorMessage;
@@ -87,7 +78,8 @@ export const login = async (username, password) => {
                 // Ignore if response body is not JSON or empty
             }
         }
-        console.error('Login failed:', errorMessage, 'URL:', response.url, 'Status:', response.status);
+        console.error('Login failed:', errorMessage, 'URL:', response.url, 'Status:',
+            response.status);
         throw new Error(errorMessage);
     }
 };
@@ -98,22 +90,22 @@ export const login = async (username, password) => {
  */
 export const logout = async () => {
     const csrfToken = getCookie('XSRF-TOKEN');
-    const headers = {}; // Content-Type not strictly needed for an empty body POST
+    const headers = {};
     if (csrfToken) {
         headers['X-XSRF-TOKEN'] = csrfToken;
     }
 
-    const response = await fetch(LOGOUT_URL, {
+    const response = await fetch(LOGOUT_URL, { // Uses updated LOGOUT_URL
         method: 'POST',
         headers: headers,
     });
 
     if (!response.ok) {
         console.warn('Logout API call failed. Status:', response.status);
-        // Client-side state is cleared by AuthContext regardless.
     }
 };
 
+// getCurrentUser and register functions remain unchanged
 /**
  * Fetches the currently authenticated user's details.
  * GET requests typically do not require CSRF tokens.

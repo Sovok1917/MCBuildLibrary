@@ -41,6 +41,10 @@ public class SecurityConfig {
     private static final String ROLE_USER_STRING = Role.ROLE_USER.name().replace("ROLE_", "");
     private static final String ROLE_ADMIN_STRING = Role.ROLE_ADMIN.name().replace("ROLE_", "");
     
+    
+    private static final String LOGIN_PROCESSING_URL = "/api/perform_login";
+    private static final String LOGOUT_PROCESSING_URL = "/api/perform_logout";
+    
     /**
      * Constructs the SecurityConfig.
      *
@@ -81,7 +85,7 @@ public class SecurityConfig {
     
     /**
      * Configures the security filter chain for HTTP requests.
-     * Defines authorization rules for various API endpoints.
+     * Defines authorization rules for various API endpoints and SPA routes.
      * CSRF protection is enabled using CookieCsrfTokenRepository.
      *
      * @param http The {@link HttpSecurity} to configure.
@@ -91,7 +95,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-        requestHandler.setCsrfRequestAttributeName(null); // Use default _csrf attribute name
+        requestHandler.setCsrfRequestAttributeName(null);
         
         http
                 .csrf(csrf -> csrf
@@ -99,14 +103,18 @@ public class SecurityConfig {
                         .csrfTokenRequestHandler(requestHandler)
                 )
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
-                        .requestMatchers("/", "/index.html", "/static/**",
-                                "/vite.svg", "/assets/**")
-                        .permitAll()
+                        .requestMatchers("/", "/index.html",
+                                "/static/**", "/assets/**",
+                                "/css/**", "/js/**", "/images/**",
+                                "/vite.svg", "/manifest.json", "/favicon.ico",
+                                "/login", "/register",
+                                "/error"
+                        ).permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**",
-                                "/v3/api-docs/**")
+                                "/v3/api-docs/**", "/actuator/**")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users/register")
-                        .permitAll() // Registration endpoint
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, API_BUILDS_PATH,
                                 "/api/builds/{identifier}",
                                 "/api/builds/{identifier}/schem")
@@ -143,18 +151,19 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .userDetailsService(userDetailsService)
                 .formLogin(formLogin ->
-                        formLogin
-                                .loginProcessingUrl("/login")
-                                .permitAll()
-                                .successHandler(restAuthenticationSuccessHandler)
+                                formLogin
+                                        .loginProcessingUrl(LOGIN_PROCESSING_URL)
+                                        .permitAll()
+                                        .successHandler(restAuthenticationSuccessHandler)
+                        
                 )
                 .logout(logout -> logout
-                        .logoutUrl("/logout")
+                        .logoutUrl(LOGOUT_PROCESSING_URL)
                         .logoutSuccessHandler((request, response, authentication) ->
                                 response.setStatus(HttpServletResponse.SC_OK)
                         )
                         .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID", "XSRF-TOKEN") // Clear XSRF token on logout
+                        .deleteCookies("JSESSIONID", "XSRF-TOKEN")
                         .permitAll());
         
         return http.build();

@@ -8,25 +8,14 @@ export default defineConfig({
   server: {
     port: 3000, // Your frontend dev server port
     proxy: {
-      // Proxy /login requests (no rewrite needed)
-      '/login': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      // Proxy /logout requests (no rewrite needed)
-      '/logout': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-        secure: false,
-      },
-      // Proxy /api requests WITHOUT rewrite
+      // Proxy /api requests (this will catch /api/perform_login, /api/perform_logout, etc.)
       '/api': {
         target: 'http://localhost:8080', // Your Spring Boot backend URL
         changeOrigin: true,
         secure: false,
-        // REMOVED: rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      // REMOVE specific proxies for /login and /logout if they are now under /api
+      // or if GET requests to them should be handled by Vite serving index.html
     },
   },
 });
