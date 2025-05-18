@@ -1,26 +1,50 @@
 # File: Dockerfile.backend
-# Use an official OpenJDK runtime as a parent image
-FROM eclipse-temurin:17-jdk-jammy
 
-# Set the working directory in the container
+# ---- Build Stage ----
+# This stage builds the Spring Boot application using Maven
+FROM eclipse-temurin:17-jdk-jammy AS builder
+
 WORKDIR /app
 
-# Arguments for JAR file name and path (can be overridden at build time)
+# Copy the Maven wrapper and pom.xml first to leverage Docker layer caching
+# Ensure .mvn folder and mvnw script are in your project root and committed to Git
+COPY .mvn/ .mvn
+COPY mvnw pom.xml ./
+
+# Download dependencies. This layer will be cached if pom.xml or mvnw don't change.
+# The -B flag runs Maven in non-interactive (batch) mode.
+RUN ./mvnw dependency:go-offline -B
+
+# Copy the rest of the application source code
+COPY src ./src
+
+# Build the application and create the JAR.
+# -DskipTests skips running tests during the Docker build, which is common.
+# Ensure your JAR_FILE_NAME in the next stage matches what's produced here.
+RUN ./mvnw package -DskipTests -B
+
+# ---- Runtime Stage ----
+# This stage creates the final image with only the JRE and the application JAR
+FROM eclipse-temurin:17-jre-jammy
+
+WORKDIR /app
+
+# The JAR_FILE_NAME should match the artifactId and version in your pom.xml
 ARG JAR_FILE_NAME=MCBuildLibrary-0.0.1-SNAPSHOT.jar
-ARG JAR_FILE_PATH=target
 
-# Copy the executable JAR file from the specified path to the working directory
-COPY ${JAR_FILE_PATH}/${JAR_FILE_NAME} app.jar
+# Copy the executable JAR file from the builder stage
+COPY --from=builder /app/target/${JAR_FILE_NAME} app.jar
 
-# Make port 8080 available to the world outside this container
+# Make port 8080 available
 EXPOSE 8080
 
-# Define environment variables for database connection (placeholders)
-# These should be set in docker-compose.yml or via .env file
-ENV DB_URL=jdbc:postgresql://your-db-host:5432/your-db-nam
-ENV DB_USERNAME=your-db-user
-ENV DB_PASSWORD=your-db-password
-ENV APP_DEFAULT_ADMIN_PASSWORD=your_secure_admin_password_docker
+# Define environment variables (these will be overridden by Render's environment settings)
+# It's good practice to show what's expected, but Render will manage the actual values.
+ENV DB_URL=""
+ENV DB_USERNAME=""
+ENV DB_PASSWORD=""
+ENV APP_DEFAULT_ADMIN_USERNAME=""
+ENV APP_DEFAULT_ADMIN_PASSWORD=""
 
 # Run the JAR file
 ENTRYPOINT ["java", "-jar", "app.jar"]
