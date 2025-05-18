@@ -13,9 +13,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint; // Import this
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint; // Import this
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher; // Import this
 import sovok.mcbuildlibrary.model.Role;
 import sovok.mcbuildlibrary.service.UserDetailsServiceImpl;
 
@@ -84,6 +87,16 @@ public class SecurityConfig {
     }
     
     /**
+     * Defines an AuthenticationEntryPoint that returns 401 for unauthenticated API requests.
+     *
+     * @return An {@link AuthenticationEntryPoint} instance.
+     */
+    @Bean
+    public AuthenticationEntryPoint apiAuthenticationEntryPoint() {
+        return new HttpStatusEntryPoint(org.springframework.http.HttpStatus.UNAUTHORIZED);
+    }
+    
+    /**
      * Configures the security filter chain for HTTP requests.
      * Defines authorization rules for various API endpoints and SPA routes.
      * CSRF protection is enabled using CookieCsrfTokenRepository.
@@ -95,7 +108,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
-        requestHandler.setCsrfRequestAttributeName(null);
+        requestHandler.setCsrfRequestAttributeName(null); // For compatibility with JS frameworks
         
         http
                 .csrf(csrf -> csrf
@@ -104,24 +117,27 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                         .requestMatchers("/", "/index.html",
-                                "/static/**", "/assets/**",
+                                "/static/**", "/assets/**", // Allow frontend assets
                                 "/css/**", "/js/**", "/images/**",
                                 "/vite.svg", "/manifest.json", "/favicon.ico",
-                                "/login", "/register",
-                                "/error"
+                                "/login", "/register", // SPA routes, handled by SpaController
+                                "/error" // Default error page
                         ).permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**",
                                 "/v3/api-docs/**", "/actuator/**")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users/register")
                         .permitAll()
+                        // Public GET requests for builds and metadata
                         .requestMatchers(HttpMethod.GET, API_BUILDS_PATH,
                                 "/api/builds/{identifier}",
-                                "/api/builds/{identifier}/schem")
+                                "/api/builds/{identifier}/schem",
+                                API_AUTHORS_PATH, API_THEMES_PATH, API_COLORS_PATH,
+                                "/api/builds/query", "/api/builds/related",
+                                "/api/authors/query", "/api/themes/query", "/api/colors/query"
+                        )
                         .permitAll()
-                        .requestMatchers(HttpMethod.GET, API_AUTHORS_PATH, API_THEMES_PATH,
-                                API_COLORS_PATH)
-                        .permitAll()
+                        // Authenticated endpoints
                         .requestMatchers("/api/users/me")
                         .authenticated()
                         .requestMatchers(HttpMethod.POST, API_BUILDS_PATH)
@@ -148,14 +164,21 @@ public class SecurityConfig {
                         .hasAnyRole(ROLE_USER_STRING, ROLE_ADMIN_STRING)
                         .requestMatchers("/logs/**", "/total-request-count")
                         .permitAll()
-                        .anyRequest().authenticated())
+                        .anyRequest().authenticated() // All other requests need authentication
+                )
                 .userDetailsService(userDetailsService)
                 .formLogin(formLogin ->
-                                formLogin
-                                        .loginProcessingUrl(LOGIN_PROCESSING_URL)
-                                        .permitAll()
-                                        .successHandler(restAuthenticationSuccessHandler)
-                        
+                        formLogin
+                                .loginProcessingUrl(LOGIN_PROCESSING_URL) // API endpoint for login
+                                .successHandler(restAuthenticationSuccessHandler)
+                                .failureHandler((request, response, exception) -> {
+                                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                    response.setContentType("application/json");
+                                    response.getWriter().append("{\"error\": "
+                                                    + "\"Authentication Failed\", \"message\": \"")
+                                            .append(exception.getMessage()).append("\"}");
+                                })
+                                .permitAll() // Allow access to the login processing URL
                 )
                 .logout(logout -> logout
                         .logoutUrl(LOGOUT_PROCESSING_URL)
@@ -164,7 +187,14 @@ public class SecurityConfig {
                         )
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID", "XSRF-TOKEN")
-                        .permitAll());
+                        .permitAll()
+                )
+                // Configure exception handling for API paths
+                .exceptionHandling(exceptions -> exceptions
+                        .defaultAuthenticationEntryPointFor(
+                                apiAuthenticationEntryPoint(), // Use the 401 entry point
+                                new AntPathRequestMatcher("/api/**") // Apply to /api/** paths
+                        ));
         
         return http.build();
     }
