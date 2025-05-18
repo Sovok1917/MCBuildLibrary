@@ -86,25 +86,25 @@ function AppContent({ searchQuery, setSearchQuery }) {
         if (!query || query.trim() === '') {
             return params;
         }
+
         let remainingQuery = query.trim();
         const keywords = ['author', 'theme', 'color'];
+
         keywords.forEach(keyword => {
-            const regex = new RegExp(`(?:^|\\s)${keyword}:\\s*([^:]+?)(?=\\s+(?:author:|theme:|color:)|\\s*$)`, 'i');
-            let match;
-            // eslint-disable-next-line no-cond-assign
-            while ((match = regex.exec(remainingQuery)) !== null) {
-                if (match[1]?.trim()) {
-                    params[keyword] = match[1].trim();
-                    remainingQuery = remainingQuery.substring(0, match.index) + remainingQuery.substring(regex.lastIndex);
-                    remainingQuery = remainingQuery.trim();
-                    regex.lastIndex = 0;
-                    break;
-                }
+            const regex = new RegExp(`(?:^|\\s)${keyword}:\\s*([^:\\s]+(?:\\s+[^:\\s]+)*?)(?=\\s+(?:author:|theme:|color:)|$)`, 'i');
+            const match = regex.exec(remainingQuery);
+
+            // Refactored condition using optional chaining
+            if (match?.[1]) {
+                params[keyword] = match[1].trim();
+                remainingQuery = remainingQuery.replace(match[0], '').trim();
             }
         });
+
         if (remainingQuery) {
             params.name = remainingQuery;
         }
+
         console.log("Parsed search params:", params);
         return params;
     };
