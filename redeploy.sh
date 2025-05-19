@@ -12,6 +12,16 @@ SKIP_GIT_PULL=true
 SKIP_TESTS=true
 CLEAN_DOCKER_RESOURCES=false # Set to true to prune docker resources after deployment
 
+# Function to ensure Docker Compose services are stopped
+cleanup_docker_services() {
+    echo "" # Newline for better formatting
+    echo "------------------------------------"
+    echo "🛑 Stopping Docker Compose services..."
+    docker-compose down --remove-orphans
+    echo "✅ Docker services stopped."
+    echo "------------------------------------"
+}
+
 # 1. (Optional) Pull latest changes from Git
 if [ "$SKIP_GIT_PULL" = false ]; then
     echo "🔄 Pulling latest changes from Git..."
@@ -45,11 +55,9 @@ fi
 echo "✅ Backend build complete."
 echo "------------------------------------"
 
-# 3. Stop and Remove Existing Docker Compose Services
-echo "🛑 Stopping and removing existing Docker services (if any)..."
-docker-compose down --remove-orphans
-echo "✅ Services stopped and removed."
-echo "------------------------------------"
+# 3. Stop and Remove Existing Docker Compose Services (before starting new ones)
+# This is good practice to ensure a clean state.
+cleanup_docker_services
 
 # 4. Start Docker Compose Services (with build)
 echo "🐳 Building and starting Docker services..."
@@ -72,10 +80,25 @@ echo "Frontend should be accessible at http://localhost:3000"
 echo "Backend (if directly accessed) at http://localhost:8080"
 echo "------------------------------------"
 
-# 6. (Optional) Tail logs for a few seconds or until Ctrl+C
-echo "📜 Tailing backend logs (Ctrl+C to stop)..."
-# Trap Ctrl+C to exit gracefully from log tailing
-trap "echo 'Exiting log tail.'; exit 0" INT
+# 6. Tail logs and set up trap for Ctrl+C
+echo "📜 Tailing backend logs (Ctrl+C to stop services and exit)..."
+
+# Trap Ctrl+C (INT signal)
+# When Ctrl+C is pressed, call cleanup_docker_services and then exit.
+trap "echo ''; echo 'SIGINT received, stopping services...'; cleanup_docker_services; exit 0" INT
+
+# Start log tailing in the background
 docker-compose logs -f backend &
 LOG_TAIL_PID=$!
-wait $LOG_TAIL_PID # Wait for the log tailing process (or Ctrl+C)
+
+# Wait for the log tailing process (or for the trap to be triggered by Ctrl+C)
+# This wait will be interrupted by the trap.
+wait $LOG_TAIL_PID
+
+# If wait finishes without trap (e.g. backend container stops on its own),
+# ensure services are stopped. This is a fallback.
+# However, the trap should normally handle the Ctrl+C case.
+echo "Log tailing finished or interrupted."
+cleanup_docker_services # Ensure cleanup if loop exited for other reasons than Ctrl+C
+echo "------------------------------------"
+echo "Script finished."

@@ -1,21 +1,42 @@
+# file: docker-compose.yml
 services:
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
       args:
-        JAR_FILE_NAME: MCBuildLibrary-0.0.1-SNAPSHOT.jar # Ensure this matches your JAR
-        JAR_FILE_PATH: target
+        JAR_FILE_NAME: ${BACKEND_JAR_FILE_NAME:-MCBuildLibrary-0.0.1-SNAPSHOT.jar}
+        JAR_FILE_PATH: ${BACKEND_JAR_FILE_PATH:-target}
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT_HOST:-8080}:${BACKEND_PORT_CONTAINER:-8080}"
+    env_file: # Explicitly load .env file for this service
+      - .env
     environment:
-      - DB_URL=jdbc:postgresql://host.docker.internal:5432/mcbuildlibrary
-      - DB_USERNAME=mcbuilduser
-      - DB_PASSWORD=securepassword
-      - APP_DEFAULT_ADMIN_USERNAME=admin
-      - APP_DEFAULT_ADMIN_PASSWORD=password
-    extra_hosts: # You can remove or comment this out if using the direct IP
-       - "host.docker.internal:host-gateway"
+      # These environment variables are set for the container.
+      # Docker Compose will substitute ${VAR} with values from your shell or .env file.
+      # The order of precedence is: shell > .env specified by env_file.
+      # If a variable is defined in the shell, that value is used.
+      # Otherwise, the value from the .env file is used.
+      - DB_URL=${DB_URL}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - APP_DEFAULT_ADMIN_USERNAME=${APP_DEFAULT_ADMIN_USERNAME}
+      - APP_DEFAULT_ADMIN_PASSWORD=${APP_DEFAULT_ADMIN_PASSWORD}
+    # This command overrides the Dockerfile's ENTRYPOINT.
+    # It first prints all environment variables, then starts the application.
+    command: >
+      /bin/sh -c "
+      echo '----------------------------------------------------';
+      echo 'DEBUG: Environment variables in backend container:';
+      printenv | sort;
+      echo '----------------------------------------------------';
+      echo 'DEBUG: Specifically, DB_URL is: ${DB_URL}';
+      echo '----------------------------------------------------';
+      echo 'Starting Spring Boot application...';
+      java -jar app.jar
+      "
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - mcbuildapp-network
 
@@ -24,7 +45,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.frontend
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT_HOST:-3000}:${FRONTEND_PORT_CONTAINER:-80}"
     depends_on:
       - backend
     networks:
