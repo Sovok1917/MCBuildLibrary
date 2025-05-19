@@ -79,7 +79,7 @@ function AppContent({ searchQuery, setSearchQuery }) {
     const [totalPages, setTotalPages] = useState(0);
     const [itemsPerPage] = useState(9); // Default items per page
 
-    const buildListRightEdgeVisualInset = 112;
+    const buildListRightEdgeVisualInset = 68;
 
     const parseSearchQuery = (query) => {
         const params = { name: null, author: null, theme: null, color: null };
