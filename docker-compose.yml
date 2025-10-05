@@ -1,29 +1,21 @@
-# file: docker-compose.yml
 services:
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
       args:
-        JAR_FILE_NAME: ${BACKEND_JAR_FILE_NAME:-MCBuildLibrary-0.0.1-SNAPSHOT.jar}
-        JAR_FILE_PATH: ${BACKEND_JAR_FILE_PATH:-target}
+        JAR_FILE_NAME: ${BACKEND_JAR_FILE_NAME}
+        JAR_FILE_PATH: ${BACKEND_JAR_FILE_PATH}
     ports:
       - "${BACKEND_PORT_HOST:-8080}:${BACKEND_PORT_CONTAINER:-8080}"
-    env_file: # Explicitly load .env file for this service
+    env_file: 
       - .env
     environment:
-      # These environment variables are set for the container.
-      # Docker Compose will substitute ${VAR} with values from your shell or .env file.
-      # The order of precedence is: shell > .env specified by env_file.
-      # If a variable is defined in the shell, that value is used.
-      # Otherwise, the value from the .env file is used.
       - DB_URL=${DB_URL}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - APP_DEFAULT_ADMIN_USERNAME=${APP_DEFAULT_ADMIN_USERNAME}
       - APP_DEFAULT_ADMIN_PASSWORD=${APP_DEFAULT_ADMIN_PASSWORD}
-    # This command overrides the Dockerfile's ENTRYPOINT.
-    # It first prints all environment variables, then starts the application.
     command: >
       /bin/sh -c "
       echo '----------------------------------------------------';
@@ -45,7 +37,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.frontend
     ports:
-      - "${FRONTEND_PORT_HOST:-3000}:${FRONTEND_PORT_CONTAINER:-80}"
+      - "${FRONTEND_PORT_HOST}:${FRONTEND_PORT_CONTAINER}"
     depends_on:
       - backend
     networks:
