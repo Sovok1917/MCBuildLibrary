@@ -1,57 +1,19 @@
-# Test Plan for MCBuildLibrary
+# Test Results for MCBuildLibrary
 
-## 1. Introduction
-This document outlines the testing strategy for the MCBuildLibrary web application. The purpose of this plan is to define the scope, approach, resources, and schedule of all testing activities. The goal is to verify that the application meets its specified requirements and quality standards before deployment.
+This document contains the detailed test cases executed for the MCBuildLibrary project and their outcomes.
 
-## 2. Test Items
-The items to be tested include the entire MCBuildLibrary application, which consists of the following main components:
-*   **Frontend:** A React-based single-page application that provides the user interface.
-*   **Backend:** A Spring Boot application that serves a REST API for all business logic.
-*   **Database:** A PostgreSQL database for data persistence.
-
-**Quality Attributes (based on ISO 25010):**
-*   **Functional Suitability:** The application must perform all functions described in the SRS, such as user registration, build uploading, searching, and downloading.
-*   **Security:** The application must correctly enforce access control, preventing unauthorized users from performing administrative actions.
-*   **Usability:** The user interface should be intuitive and provide clear feedback for user actions.
-*   **Reliability:** The application should handle errors gracefully (e.g., invalid input, server errors) without crashing.
-
-## 3. Risk Issues
-The following risks could potentially affect the quality of the product:
-*   **Invalid Data:** Users might upload corrupted or non-`.schem` files, which the system must handle gracefully.
-*   **Security Vulnerabilities:** A malicious user might attempt to perform actions they are not authorized for (e.g., a regular user trying to delete another user's build).
-*   **Concurrency Issues:** Multiple users interacting with the system simultaneously could lead to unexpected behavior (though less critical for this project's scope).
-*   **Cross-Browser Compatibility:** The frontend may not render or function correctly on all web browsers.
-
-## 4. Features to be Tested
-Testing will focus on the core functionalities of the application, derived from the Use Case analysis.
-*(This list should be agreed upon with the instructor).*
-
-*   **User Authentication:**
-    *   User Registration (Positive and Negative scenarios)
-    *   User Login (Positive and Negative scenarios)
-    *   User Logout
-*   **Build Management:**
-    *   Viewing and paginating the list of builds.
-    *   Searching and filtering builds.
-    *   Downloading a build's schematic file.
-    *   Uploading a new build (by a registered user).
-*   **Administrative Functions:**
-    *   Deleting any build (by an administrator).
-    *   Editing any build (by an administrator).
-    *   Role-based access control for admin-only functions.
-
-## 5. Test Approach
-A combination of manual and automated testing will be used.
-*   **Unit Testing (Automated):** The existing JUnit tests for the backend service layer will be reviewed and potentially expanded to cover more business logic.
-*   **Manual Testing:** The primary approach for this lab will be manual, black-box testing based on the test cases derived from the system's use cases. A tester will perform the role of each actor (Guest, Registered User, Administrator) and execute the scenarios defined in the `TestResults.md` document.
-*   **Tools:**
-    *   **Documentation:** Text editor (VS Code, etc.)
-    *   **Backend Unit Testing:** JUnit, Mockito
-    *   **Manual Testing:** Web Browser (e.g., Chrome, Firefox) and its developer tools.
-
-## 6. Pass/Fail Criteria
-A test case is considered **Passed** if the actual result of the test matches the expected result defined in the test case, and no critical errors occur.
-A test case is considered **Failed** if the actual result deviates from the expected result. All failed tests will be documented with details to facilitate debugging.
-
-## 7. Conclusion
-This test plan provides a comprehensive framework for validating the MCBuildLibrary application. Executing these tests will ensure that the product is functional, secure, and meets the quality attributes required by the SRS.
+| ID | Purpose / Title | Scenario / Instructions | Expected Result | Actual Result | Pass/Fail |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Authentication** |
+| TC-01 | Successful Registration | 1. Navigate to the Register page. <br> 2. Enter a unique username and a matching password/confirm password. <br> 3. Click "Register". | A success message is displayed, and the user is redirected to the Login page. | As expected. A success message was displayed, and the user was redirected to the Login page. | **Pass** |
+| TC-02 | Registration with existing username | 1. Navigate to the Register page. <br> 2. Enter a username that already exists. <br> 3. Click "Register". | An error message "Username already taken" is displayed. The user remains on the Register page. | As expected. An error message indicating the username was taken was displayed. | **Pass** |
+| TC-03 | Successful Login | 1. Navigate to the Login page. <br> 2. Enter the credentials of a valid user. <br> 3. Click "Login". | The user is redirected to the main page and sees a welcome message. The "Logout" button is visible. | As expected. The user was redirected to the main page, and the UI updated to the authenticated state. | **Pass** |
+| TC-04 | Login with invalid credentials | 1. Navigate to the Login page. <br> 2. Enter an incorrect username or password. <br> 3. Click "Login". | An error message "Invalid credentials" is displayed. The user remains on the Login page. | As expected. An error message regarding invalid credentials was displayed. | **Pass** |
+| **Build Management** |
+| TC-05 | View Builds as Guest | 1. Open the application without logging in. | A paginated list of builds is displayed on the main page. | As expected. The main page loaded and displayed the first page of builds correctly. | **Pass** |
+| TC-06 | Download Schematic as Guest | 1. As a Guest, click the "Download" icon on any build. | The browser prompts to save the correct `.schem` file. | As expected. The browser initiated a file download for the correct `.schem` file. | **Pass** |
+| TC-07 | Successful Build Upload | 1. Log in as a Registered User. <br> 2. Click "Add New Build". <br> 3. Fill all required fields with valid data and select a valid `.schem` file. <br> 4. Click "Create Build". | A success message is shown, and the new build appears in the build list. | As expected. A success message was displayed, and the build list refreshed to show the newly added build. | **Pass** |
+| TC-08 | Build Upload with missing data | 1. Log in as a Registered User. <br> 2. Attempt to submit the "Add New Build" form with a required field (e.g., Name) left blank. | A validation error message is displayed next to the empty field. The form is not submitted. | As expected. A validation error appeared next to the blank field, preventing form submission. | **Pass** |
+| **Security & Admin** |
+| TC-09 | Attempt Admin action as User | 1. Log in as a regular (non-admin) Registered User. <br> 2. Attempt to access an admin function (e.g., by trying to manually send a DELETE request to `/api/builds/{id}`). | The server should return a `403 Forbidden` error. The UI should not show admin buttons (like Delete/Edit on other's builds). | As expected. The UI did not display admin-only buttons. Manually attempting the API call resulted in a 403 Forbidden error. | **Pass** |
+| TC-10 | Successful Build Deletion by Admin | 1. Log in as an Administrator. <br> 2. Click the "Delete" icon on a build. <br> 3. Confirm the action in the dialog. | The build is removed from the list. | As expected. After confirmation, the build was successfully removed from the UI. | **Pass** |
