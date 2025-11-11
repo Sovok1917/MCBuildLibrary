@@ -1,3 +1,4 @@
+// file: src/main/java/sovok/mcbuildlibrary/config/SecurityConfig.java
 package sovok.mcbuildlibrary.config;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -136,7 +137,7 @@ public class SecurityConfig {
                                 "/api/builds/query", "/api/builds/related",
                                 "/api/authors/query", "/api/themes/query", "/api/colors/query"
                         )
-                        .permitAll()
+                        .hasAnyAuthority(Role.ROLE_ADMIN.name(), Role.ROLE_USER.name(), "ROLE_ANONYMOUS") // UPDATED for guest access
                         // Authenticated endpoints
                         .requestMatchers("/api/users/me")
                         .authenticated()

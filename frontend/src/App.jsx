@@ -1,3 +1,4 @@
+// file: frontend/src/App.jsx
 // File: frontend/src/App.jsx
 // noinspection JSUnusedGlobalSymbols,XmlDeprecatedElement
 
@@ -376,6 +377,7 @@ function App() {
     const { isAuthenticated, logout, isLoadingAuth, currentUser } = useAuth();
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
+    const location = useLocation(); // <-- Get the current location
 
     const handleLogout = async () => {
         await logout();
@@ -391,6 +393,9 @@ function App() {
     };
 
     const searchPlaceholder = "Name or author:bob theme:fantasy color:red";
+
+    // UPDATED: Determine if the search bar should be shown
+    const showSearchBar = location.pathname !== '/login' && location.pathname !== '/register';
 
     if (isLoadingAuth) {
         return (
@@ -414,7 +419,8 @@ function App() {
                         MC Builds
                     </Typography>
 
-                    {isAuthenticated && (
+                    {/* UPDATED: Conditionally render the search bar based on the route */}
+                    {showSearchBar && (
                         <Box sx={{ position: 'relative', borderRadius: 1, backgroundColor: 'rgba(255, 255, 255, 0.15)', '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.25)' }, mr: 2, flexGrow: { xs: 1, sm: 0 }, width: { xs: 'auto', sm: 'auto' }, minWidth: { sm: '380px'} }}>
                             <TextField
                                 placeholder={searchPlaceholder}
@@ -422,7 +428,7 @@ function App() {
                                 fullWidth
                                 value={searchQuery}
                                 onChange={handleSearchChange}
-                                InputProps={{ // Changed from startAdornment/endAdornment directly on TextField
+                                InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
                                             <SearchIcon sx={{ color: 'common.white', ml: 1 }} />
@@ -441,8 +447,8 @@ function App() {
                                             </IconButton>
                                         </InputAdornment>
                                     ) : null,
-                                    disableUnderline: true, // Moved here
-                                    sx:{ // Moved here
+                                    disableUnderline: true,
+                                    sx:{
                                         color: 'common.white', padding: '6px 10px', marginTop: 0,
                                         '& .MuiInputBase-input::placeholder': { color: 'rgba(255, 255, 255, 0.6)', opacity: 1, fontSize: '0.875rem' },
                                         '& .MuiInputBase-input': { paddingTop: '2px', paddingBottom: '2px' }
@@ -481,11 +487,7 @@ function App() {
                 <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <Register />} />
                 <Route
                     path="/*"
-                    element={
-                        <ProtectedRoute>
-                            <AppContent searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-                        </ProtectedRoute>
-                    }
+                    element={<AppContent searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
                 />
             </Routes>
         </>
