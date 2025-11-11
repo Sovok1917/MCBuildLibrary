@@ -26,9 +26,13 @@
         <tag/>
         <url/>
     </scm>
+
     <properties>
         <java.version>17</java.version>
+        <!-- Explicitly define a newer, compatible Lombok version -->
+        <lombok.version>1.18.32</lombok.version>
     </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -44,6 +48,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <!-- The version is now managed by the property above -->
             <scope>provided</scope>
         </dependency>
 
@@ -84,7 +89,21 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
 
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <!-- Ensure the compiler uses the same explicit version -->
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
 
             <plugin>
@@ -99,7 +118,7 @@
                     </execution>
                     <execution>
                         <id>report</id>
-                        <phase>verify</phase> <!-- Generate report after tests run (verify phase runs after test) -->
+                        <phase>verify</phase>
                         <goals>
                             <goal>report</goal>
                         </goals>

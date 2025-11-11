@@ -1,4 +1,21 @@
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: mcbuildlibrary-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      # This exposes the database port to your host machine, which is useful for debugging.
+      # Format is HOST_PORT:CONTAINER_PORT
+      - "5433:5432"
+    networks:
+      - mcbuildapp-network
+
   backend:
     build:
       context: .
@@ -8,27 +25,16 @@ services:
         JAR_FILE_PATH: ${BACKEND_JAR_FILE_PATH}
     ports:
       - "${BACKEND_PORT_HOST:-8080}:${BACKEND_PORT_CONTAINER:-8080}"
-    env_file: 
+    env_file:
       - .env
     environment:
-      - DB_URL=${DB_URL}
+      - DB_URL=jdbc:postgresql://db:${DB_PORT}/${DB_NAME}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
       - APP_DEFAULT_ADMIN_USERNAME=${APP_DEFAULT_ADMIN_USERNAME}
       - APP_DEFAULT_ADMIN_PASSWORD=${APP_DEFAULT_ADMIN_PASSWORD}
-    command: >
-      /bin/sh -c "
-      echo '----------------------------------------------------';
-      echo 'DEBUG: Environment variables in backend container:';
-      printenv | sort;
-      echo '----------------------------------------------------';
-      echo 'DEBUG: Specifically, DB_URL is: ${DB_URL}';
-      echo '----------------------------------------------------';
-      echo 'Starting Spring Boot application...';
-      java -jar app.jar
-      "
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - db # Tells the backend to wait for the db to start
     networks:
       - mcbuildapp-network
 
@@ -46,3 +52,8 @@ services:
 networks:
   mcbuildapp-network:
     driver: bridge
+
+volumes:
+  postgres_data:
+  # This creates a named volume to persist your database data
+  # even when you stop and remove the containers.
